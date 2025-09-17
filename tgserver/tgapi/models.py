@@ -25,21 +25,6 @@ class Message(models.Model):
     account_phone = models.CharField(max_length=20, blank=True,null=True)
     date = models.DateTimeField()
 
-    # def save(self, *args, **kwargs):
-    #     if self.telegram_id:
-    #         # проверка по telegram_id
-    #         if Message.objects.filter(telegram_id=self.telegram_id).exists():
-    #             return  # дубликат, не сохраняем
-    #     else:
-    #         # проверка по уникальности сообщения без telegram_id
-    #         if Message.objects.filter(
-    #                 dialog=self.dialog,
-    #                 sender_name=self.sender_name,
-    #                 text=self.text,
-    #                 date=self.date
-    #         ).exists():
-    #             return  # дубликат, не сохраняем
-    #     super().save(*args, **kwargs)
     class Meta:
         verbose_name = 'Сообщение'
         verbose_name_plural = 'Сообщения'

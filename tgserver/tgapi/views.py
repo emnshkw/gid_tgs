@@ -29,12 +29,8 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         message = self.get_object()
         delivered = request.data.get("delivered")
-        print(message)
-        print(message.delivered)
-        print(delivered)
         if delivered is not None:
             message.delivered = delivered
             message.save()
-            print("Сообщение сохранено")
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
