@@ -29,6 +29,7 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         message = self.get_object()
         delivered = request.data.get("delivered")
+        print(message)
         if delivered is not None:
             message.delivered = delivered
             message.save()
