@@ -126,7 +126,7 @@ def create_message(dialog_id, sender_name, text, date_iso,
 
 def mark_delivered(message_id):
     try:
-        requests.patch(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
+        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
         print(f"Marked delivered: {message_id}")
     except Exception as e:
         print("mark_delivered error:", e)
