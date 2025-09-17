@@ -257,9 +257,13 @@ class AccountMonitor:
                     # Получаем диалог, чтобы узнать chat_id
                     try:
                         dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/")
+
                         dlg_resp.raise_for_status()
                         dlg = dlg_resp.json()
-                        chat_id = dlg.get("chat_id")
+                        for d in dlg:
+                            if d['id'] == msg['dialog']:
+                                chat_id = d["chat_id"]
+                                break
                     except Exception as e:
                         print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
                         continue
