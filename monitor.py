@@ -124,12 +124,20 @@ def create_message(dialog_id, sender_name, text, date_iso,
         print("create_message error:", e)
         return False
 
-def mark_delivered(message_id):
+def mark_delivered(message_id: int):
+    """
+    Помечает сообщение как доставленное в Django.
+    message_id — это ID сообщения в базе (не telegram_id!).
+    """
     try:
-        requests.patch(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
-        print(f"Marked delivered: {message_id}")
+        url = f"{API_BASE}/messages/{message_id}/"
+        resp = requests.patch(url, json={"delivered": True})
+        if resp.status_code in (200, 204):
+            print(f"Message {message_id} marked as delivered.")
+        else:
+            print(f"Failed to mark delivered for {message_id}: {resp.status_code} {resp.text}")
     except Exception as e:
-        print("mark_delivered error:", e)
+        print(f"Error marking message delivered: {e}")
 
 # --- Монитор для одного аккаунта ---
 class AccountMonitor:
