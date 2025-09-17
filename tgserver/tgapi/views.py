@@ -34,5 +34,6 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         if delivered is not None:
             message.delivered = delivered
             message.save()
+            print("Сообщение сохранено")
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
