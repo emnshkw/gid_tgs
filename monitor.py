@@ -72,8 +72,11 @@ def get_undelivered_messages_for_account(account_phone):
         for msg in r.json():
             try:
                 dlg = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/").json()
-                if dlg.get("account_phone") == account_phone:
-                    msgs.append(msg)
+                for d in dlg:
+                    if d['id'] == msg['dialog']:
+                        dlg = d
+                        if dlg.get("account_phone") == account_phone:
+                            msgs.append(msg)
             except Exception:
                 continue
         return msgs
