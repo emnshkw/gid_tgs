@@ -34,3 +34,8 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
             message.save()
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    def delete(self, request, *args, **kwargs):
+        message = self.get_object()
+        message.delete()
+        serializer = MessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_200_OK)
