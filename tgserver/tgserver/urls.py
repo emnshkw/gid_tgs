@@ -24,3 +24,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('tgapi.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+admin.site.site_header = 'Панель администрирования GID'
+admin.site.index_title = 'GID'

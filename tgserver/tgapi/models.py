@@ -6,6 +6,8 @@ class Dialog(models.Model):
     chat_title = models.CharField(max_length=255)
 
     class Meta:
+        verbose_name = 'Диалог'
+        verbose_name_plural = "Диалоги"
         unique_together = ("account_phone", "chat_id")
 
     def __str__(self):
@@ -24,6 +26,8 @@ class Message(models.Model):
     date = models.DateTimeField()
 
     class Meta:
+        verbose_name = 'Сообщение'
+        verbose_name_plural = 'Сообщения'
         unique_together = ("dialog", "text", "date")
         ordering = ["date"]  # сортировка по дате
 
