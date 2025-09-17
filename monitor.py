@@ -131,7 +131,7 @@ def mark_delivered(message_id: int):
     """
     try:
         url = f"{API_BASE}/messages/{message_id}/"
-        resp = requests.patch(url, json={"delivered": True})
+        resp = requests.delete(url)
         if resp.status_code in (200, 204):
             print(f"Message {message_id} marked as delivered.")
         else:
