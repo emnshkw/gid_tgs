@@ -75,7 +75,7 @@ def get_undelivered_messages_for_account(account_phone):
                 for d in dlg:
                     if d['id'] == msg['dialog']:
                         dlg = d
-                        if dlg.get("account_phone") == account_phone:
+                        if dlg["account_phone"] == account_phone:
                             msgs.append(msg)
             except Exception:
                 continue
