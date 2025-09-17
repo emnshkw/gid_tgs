@@ -30,6 +30,7 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         message = self.get_object()
         delivered = request.data.get("delivered")
         print(message)
+        print(delivered)
         if delivered is not None:
             message.delivered = delivered
             message.save()
