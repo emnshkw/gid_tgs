@@ -12,7 +12,7 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 
 API_FILE = os.path.join(BASE_DIR, "api.txt")
 ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
-API_BASE = "http://5.129.253.254/api"
+API_BASE = "http://127.0.0.1/api"
 
 # --- Чтение API ID / HASH ---
 with open(API_FILE, encoding="utf-8") as f:
@@ -157,7 +157,7 @@ class AccountMonitor:
     async def scan_once(self):
         try:
             # Проходим по диалогам (limit ограничивает количество)
-            async for dialog in self.client.get_dialogs(limit=50):
+            async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
                 chat_id = chat.id
                 # Сформируем читабельное название чата
@@ -168,7 +168,7 @@ class AccountMonitor:
 
                 # Получаем историю (не очень большой лимит чтобы не получать FloodWait)
                 try:
-                    async for msg in self.client.get_chat_history(chat_id, limit=50):
+                    async for msg in self.client.get_chat_history(chat_id, limit=0):
                         # Пропускаем системные пустые сообщения
                         if not getattr(msg, "text", None) and not (getattr(msg, "media", None) or getattr(msg, "photo", None) or getattr(msg, "document", None)):
                             continue

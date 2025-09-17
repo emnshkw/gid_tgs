@@ -44,7 +44,7 @@ INSTALLED_APPS = ['rest_framework',
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
-CSRF_TRUSTED_ORIGINS = ['http://5.129.253.254']
+CSRF_TRUSTED_ORIGINS = ['http://5.129.253.254','http://127.0.0.1']
 MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
