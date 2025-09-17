@@ -4,3 +4,4 @@ from django.apps import AppConfig
 class TgapiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'tgapi'
+    verbose_name = 'Телеграмм'
