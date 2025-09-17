@@ -1,269 +1,248 @@
-import sys
+import asyncio
 import os
-import requests
 from datetime import datetime
-from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QListWidget, QTextEdit, QPushButton, QLabel,
-    QFileDialog, QHBoxLayout, QListWidgetItem, QDialog, QScrollArea
-)
-from PyQt6.QtGui import QPixmap, QColor
-from PyQt6.QtCore import Qt, QUrl, QTimer
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtMultimediaWidgets import QVideoWidget
+import requests
+from pyrogram import Client
 
-API_BASE = "http://127.0.0.1:8000/api"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
+MEDIA_DIR = os.path.join(BASE_DIR, "tgserver/media")
+os.makedirs(MEDIA_DIR, exist_ok=True)
 
-class ChatGUI(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Telegram GUI")
-        self.resize(1000, 600)
-        self.dialogs = []
-        self.messages = []
-        self.current_dialog_id = None
-        self.media_to_send = None
+API_FILE = os.path.join(BASE_DIR, "api.txt")
+ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
+API_BASE = "http://5.129.253.254/api"
 
-        main_layout = QHBoxLayout()
-        self.setLayout(main_layout)
+# --- API ID / HASH ---
+with open(API_FILE) as f:
+    API_ID = int(f.readline().strip())
+    API_HASH = f.readline().strip()
 
-        # --- Список диалогов ---
-        self.dialog_list = QListWidget()
-        self.dialog_list.itemClicked.connect(self.open_dialog)
-        main_layout.addWidget(self.dialog_list, 1)
+# --- Номера аккаунтов ---
+with open(ACCOUNTS_FILE) as f:
+    ACCOUNTS = [line.strip() for line in f if line.strip()]
 
-        # --- Панель сообщений ---
-        right_layout = QVBoxLayout()
-        self.message_list = QListWidget()
-        right_layout.addWidget(self.message_list, 8)
+# --- API функции ---
+def find_dialog(account_phone, chat_id):
+    try:
+        r = requests.get(f"{API_BASE}/dialogs/")
+        r.raise_for_status()
+        for dlg in r.json():
+            if dlg["account_phone"] == account_phone and int(dlg["chat_id"]) == int(chat_id):
+                return dlg
+    except:
+        pass
+    return None
 
-        self.text_edit = QTextEdit()
-        right_layout.addWidget(self.text_edit, 1)
+def create_dialog(account_phone, chat_id, chat_title):
+    existing = find_dialog(account_phone, chat_id)
+    if existing:
+        return existing["id"]
+    r = requests.post(f"{API_BASE}/dialogs/", json={
+        "account_phone": account_phone,
+        "chat_id": chat_id,
+        "chat_title": chat_title
+    })
+    if r.status_code in (200, 201):
+        return r.json()["id"]
+    return None
 
-        send_layout = QHBoxLayout()
-        self.attach_btn = QPushButton("Прикрепить медиа")
-        self.attach_btn.clicked.connect(self.attach_media)
-        send_layout.addWidget(self.attach_btn)
+def get_undelivered_messages(account_phone):
+    try:
+        r = requests.get(f"{API_BASE}/messages/?delivered=false")
+        r.raise_for_status()
+        msgs = []
+        for msg in r.json():
+            dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/").json()
+            # dlg_resp может быть списком
+            if isinstance(dlg_resp, list):
+                dlg_resp = dlg_resp[0]
+            if dlg_resp["account_phone"] == account_phone:
+                msgs.append(msg)
+        return msgs
+    except:
+        return []
 
-        self.send_btn = QPushButton("Отправить")
-        self.send_btn.clicked.connect(self.send_message)
-        send_layout.addWidget(self.send_btn)
-
-        right_layout.addLayout(send_layout)
-        main_layout.addLayout(right_layout, 3)
-
-        # --- Таймеры автообновления ---
-        self.dialogs_timer = QTimer()
-        self.dialogs_timer.timeout.connect(self.load_dialogs)
-        self.dialogs_timer.start(5000)  # обновление списка диалогов каждые 5 секунд
-
-        self.dialog_refresh_timer = QTimer()
-        self.dialog_refresh_timer.timeout.connect(self.refresh_current_dialog)
-        self.dialog_refresh_timer.start(3000)  # обновление открытого диалога каждые 3 секунды
-
-        self.load_dialogs()
-
-    # --- Загрузка диалогов ---
-    def load_dialogs(self):
+def create_or_update_message(dialog_id, sender_name, text, date_iso,
+                             media_file=None, media_type=None,
+                             delivered=True, telegram_id=None, account_phone=None):
+    """
+    Создаём или обновляем сообщение по telegram_id + account_phone.
+    """
+    if telegram_id is not None:
         try:
-            r = requests.get(f"{API_BASE}/dialogs/")
+            r = requests.get(f"{API_BASE}/messages/?dialog={dialog_id}&telegram_id={telegram_id}&account_phone={account_phone}")
             r.raise_for_status()
-            self.dialogs = r.json()
-            self.dialog_list.clear()
-            for dlg in self.dialogs:
-                last_msg_text = ""
-                last_msg_date = ""
+            existing = r.json()
+            if existing:
+                # обновляем запись (например, если GUI поставил delivered=False)
+                msg_id = existing[0]["id"]
+                requests.patch(f"{API_BASE}/messages/{msg_id}/", json={"delivered": delivered})
+                return False
+        except:
+            pass
+
+    payload = {
+        "dialog": dialog_id,
+        "sender_name": sender_name,
+        "text": text,
+        "date": date_iso,
+        "media_file": media_file,
+        "media_type": media_type,
+        "delivered": delivered,
+        "telegram_id": telegram_id,
+        "account_phone": account_phone
+    }
+    try:
+        r = requests.post(f"{API_BASE}/messages/", json=payload)
+        return r.status_code in (200, 201)
+    except Exception as e:
+        print("Create message error:", e)
+        return False
+
+def mark_delivered(message_id):
+    try:
+        requests.patch(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
+    except:
+        pass
+
+# --- Монитор аккаунта ---
+class AccountMonitor:
+    def __init__(self, phone):
+        self.phone = phone
+        self.client = Client(
+            phone.replace("+", ""),
+            api_id=API_ID,
+            api_hash=API_HASH,
+            workdir=SESSIONS_DIR
+        )
+
+    async def start(self):
+        await self.client.start()
+        print(f"[{self.phone}] started")
+
+    async def stop(self):
+        await self.client.stop()
+
+    async def scan_once(self):
+        try:
+            async for dialog in self.client.get_dialogs(limit=50):
+                chat = dialog.chat
+                chat_id = chat.id
+                chat_title = chat.title or (chat.first_name or "") + (chat.last_name or "") or str(chat_id)
+                dialog_id = create_dialog(self.phone, chat_id, chat_title)
+                if not dialog_id:
+                    continue
+
+                # Отметка прочитанного
                 try:
-                    r2 = requests.get(f"{API_BASE}/messages/?dialog={dlg['id']}&limit=0")
-                    if r2.status_code == 200 and r2.json():
-                        msg = r2.json()[-1]
-                        last_msg_text = f"{msg['sender_name']}: {msg['text'][:50]}"
-                        last_msg_date = msg['date'][:19].replace("T", " ")
+                    await self.client.read_chat_history(chat_id)
                 except Exception as e:
-                    print("Ошибка получения последнего сообщения:", e)
+                    print(f"[{self.phone}] Ошибка отметки прочитанного: {e}")
 
-                item_text = f"{dlg['chat_title']} ({dlg['account_phone']})\n{last_msg_text} [{last_msg_date}]"
-                item = QListWidgetItem(item_text)
-                if dlg.get("unread_count", 0) > 0:
-                    item.setBackground(QColor("#ffffcc"))
-                self.dialog_list.addItem(item)
+                # История сообщений
+                async for msg in self.client.get_chat_history(chat_id, limit=50):
+                    # Не обрабатываем собственные сообщения (GUI создаёт их)
+                    if msg.from_user and msg.from_user.is_self:
+                        continue
+
+                    date_iso = msg.date.isoformat()
+                    sender = msg.from_user.first_name if msg.from_user else "Unknown"
+                    text = msg.text or ""
+
+                    media_file = None
+                    media_type = None
+
+                    try:
+                        if msg.photo:
+                            media_type = "photo"
+                            file_path = os.path.join(MEDIA_DIR, f"{msg.id}_photo.jpg")
+                        elif msg.video:
+                            media_type = "video"
+                            file_path = os.path.join(MEDIA_DIR, f"{msg.id}_video.mp4")
+                        elif msg.voice:
+                            media_type = "voice"
+                            file_path = os.path.join(MEDIA_DIR, f"{msg.id}_voice.ogg")
+                        elif msg.video_note:
+                            media_type = "video_note"
+                            file_path = os.path.join(MEDIA_DIR, f"{msg.id}_video_note.mp4")
+                        elif msg.document:
+                            media_type = "document"
+                            name = msg.document.file_name or f"{msg.id}_doc"
+                            file_path = os.path.join(MEDIA_DIR, name)
+                        else:
+                            file_path = None
+
+                        if file_path and not os.path.exists(file_path):
+                            await self.client.download_media(msg, file_name=file_path)
+                        if file_path:
+                            media_file = os.path.relpath(file_path, BASE_DIR)
+                    except Exception as e:
+                        print(f"[{self.phone}] Download media error msg {msg.id}: {e}")
+
+                    create_or_update_message(
+                        dialog_id,
+                        sender,
+                        text,
+                        date_iso,
+                        media_file,
+                        media_type,
+                        delivered=True,
+                        telegram_id=msg.id,
+                        account_phone=self.phone
+                    )
+
+            # --- отправка сообщений из GUI ---
+            undelivered = get_undelivered_messages(self.phone)
+            for msg in undelivered:
+                try:
+                    dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/").json()
+                    if isinstance(dlg_resp, list):
+                        dlg_resp = dlg_resp[0]
+                    chat_id = dlg_resp["chat_id"]
+
+                    if msg.get("media_file") and msg.get("media_type"):
+                        mt = msg["media_type"]
+                        mf = os.path.join(BASE_DIR, msg["media_file"])
+                        if mt == "photo":
+                            await self.client.send_photo(chat_id, mf)
+                        elif mt == "video":
+                            await self.client.send_video(chat_id, mf)
+                        elif mt == "voice":
+                            await self.client.send_voice(chat_id, mf)
+                        elif mt == "video_note":
+                            await self.client.send_video_note(chat_id, mf)
+                        elif mt == "document":
+                            await self.client.send_document(chat_id, mf)
+                    else:
+                        await self.client.send_message(chat_id, msg["text"])
+
+                    # После отправки обновляем запись
+                    requests.patch(f"{API_BASE}/messages/{msg['id']}/", json={
+                        "delivered": True,
+                        "telegram_id": msg.get("telegram_id", 0)  # обновить telegram_id, если нужно
+                    })
+                    print(f"[{self.phone}] отправлено сообщение {msg['id']} -> delivered")
+                except Exception as e:
+                    print(f"[{self.phone}] Send error:", e)
+
         except Exception as e:
-            print("Ошибка загрузки диалогов:", e)
+            print(f"[{self.phone}] scan error:", e)
 
-    # --- Обновление последнего сообщения в списке диалогов ---
-    def update_last_message_in_dialog_list(self, dialog_id, sender_name, text, date_str):
-        for i, dlg in enumerate(self.dialogs):
-            if dlg["id"] == dialog_id:
-                last_msg = f"{sender_name}: {text[:50]} [{date_str[:19].replace('T', ' ')}]"
-                item = self.dialog_list.item(i)
-                item.setText(f"{dlg['chat_title']} ({dlg['account_phone']})\n{last_msg}")
-                break
 
-    # --- Открытие диалога ---
-    def open_dialog(self, item):
-        self.load_messages(item, scroll_to_bottom=True)
-
-    # --- Загрузка сообщений ---
-    def load_messages(self, item, scroll_to_bottom=False):
-        index = self.dialog_list.currentRow()
-        if index < 0 or index >= len(self.dialogs):
-            return
-        dlg = self.dialogs[index]
-        self.current_dialog_id = dlg["id"]
-        try:
-            r = requests.get(f"{API_BASE}/messages/?dialog={self.current_dialog_id}")
-            r.raise_for_status()
-            self.messages = r.json()
-
-            scroll_pos = self.message_list.verticalScrollBar().value()
-            self.message_list.clear()
-            for msg in self.messages:
-                self.add_message_to_list(msg)
-
-            # Обновляем последнее сообщение в списке диалогов
-            if self.messages:
-                last_msg = self.messages[-1]
-                self.update_last_message_in_dialog_list(
-                    last_msg["dialog"], last_msg["sender_name"], last_msg["text"], last_msg["date"]
-                )
-
-            # Скролл вниз при открытии диалога
-            if scroll_to_bottom:
-                self.message_list.scrollToBottom()
-            else:
-                self.message_list.verticalScrollBar().setValue(scroll_pos)
-
-        except Exception as e:
-            print("Ошибка загрузки сообщений:", e)
-
-    # --- Автообновление открытого диалога ---
-    def refresh_current_dialog(self):
-        if self.current_dialog_id:
-            self.load_messages(self.dialog_list.currentItem(), scroll_to_bottom=False)
-
-    # --- Добавление сообщения в QListWidget ---
-    def add_message_to_list(self, msg):
-        sender = msg["sender_name"]
-        text = msg["text"]
-        date = msg["date"][:19].replace("T", " ")
-        display_text = f"{sender} [{date}]: {text}"
-        item = QListWidgetItem(display_text)
-        self.message_list.addItem(item)
-
-        # Медиа
-        if msg.get("media_file"):
-            full_path = os.path.join(BASE_DIR, msg["media_file"])
-            if not os.path.exists(full_path):
-                return
-            if msg["media_type"] == "photo":
-                btn = QPushButton(f"Открыть изображение: {os.path.basename(full_path)}")
-                btn.clicked.connect(lambda checked, p=full_path: self.open_full_image(p))
-            elif msg["media_type"] in ["video", "video_note"]:
-                btn = QPushButton(f"Воспроизвести {msg['media_type']}: {os.path.basename(full_path)}")
-                btn.clicked.connect(lambda checked, p=full_path, t=msg["media_type"]: self.play_media(p, t))
-            elif msg["media_type"] == "voice":
-                btn = QPushButton(f"Воспроизвести голосовое: {os.path.basename(full_path)}")
-                btn.clicked.connect(lambda checked, p=full_path: self.play_media(p, "voice"))
-            else:  # документы
-                btn = QPushButton(f"Открыть файл: {os.path.basename(full_path)}")
-                btn.clicked.connect(lambda checked, p=full_path: os.startfile(p))
-            list_item = QListWidgetItem()
-            self.message_list.addItem(list_item)
-            self.message_list.setItemWidget(list_item, btn)
-
-    # --- Фото на весь экран ---
-    def open_full_image(self, file_path):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Изображение")
-        dialog.setWindowState(Qt.WindowState.WindowMaximized)
-        layout = QVBoxLayout(dialog)
-        scroll = QScrollArea()
-        label = QLabel()
-        pixmap = QPixmap(file_path)
-        label.setPixmap(pixmap)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setScaledContents(True)
-        scroll.setWidget(label)
-        scroll.setWidgetResizable(True)
-        layout.addWidget(scroll)
-        dialog.exec()
-
-    # --- Воспроизведение медиа ---
-    def play_media(self, file_path, media_type):
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"Воспроизведение {media_type}")
-        dialog.resize(800, 600)
-        layout = QVBoxLayout(dialog)
-        audio_output = QAudioOutput()
-        dialog.audio_output = audio_output
-        player = QMediaPlayer()
-        player.setAudioOutput(audio_output)
-        dialog.player = player
-
-        if media_type in ["video", "video_note"]:
-            video_widget = QVideoWidget()
-            layout.addWidget(video_widget)
-            player.setVideoOutput(video_widget)
-            player.setSource(QUrl.fromLocalFile(file_path))
-            player.play()
-        elif media_type == "voice":
-            player.setSource(QUrl.fromLocalFile(file_path))
-            player.play()
-
-        dialog.show()
-        dialog.finished.connect(player.stop)
-
-    # --- Прикрепление медиа ---
-    def attach_media(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Выберите медиа")
-        if file_path:
-            self.media_to_send = file_path
-            print("Прикреплено:", file_path)
-
-    # --- Отправка сообщения ---
-    def send_message(self):
-        if self.current_dialog_id is None:
-            return
-        text = self.text_edit.toPlainText()
-        if not text and not self.media_to_send:
-            return
-
-        media_file = None
-        media_type = None
-        if self.media_to_send:
-            media_file = os.path.relpath(self.media_to_send, BASE_DIR)
-            ext = os.path.splitext(self.media_to_send)[1].lower()
-            if ext in [".jpg", ".jpeg", ".png"]:
-                media_type = "photo"
-            elif ext in [".mp4"]:
-                media_type = "video"
-            elif ext in [".ogg"]:
-                media_type = "voice"
-            else:
-                media_type = "document"
-
-        payload = {
-            "dialog": self.current_dialog_id,
-            "sender_name": "Я",
-            "text": text,
-            "date": datetime.now().isoformat(),
-            "media_file": media_file,
-            "media_type": media_type,
-            "delivered": False
-        }
-        try:
-            r = requests.post(f"{API_BASE}/messages/", json=payload)
-            if r.status_code in (200, 201):
-                self.text_edit.clear()
-                self.media_to_send = None
-                # обновляем диалог после отправки и скроллим вниз
-                self.load_messages(self.dialog_list.currentItem(), scroll_to_bottom=True)
-        except Exception as e:
-            print("Ошибка отправки сообщения:", e)
+async def run_loop():
+    monitors = [AccountMonitor(p) for p in ACCOUNTS]
+    for m in monitors:
+        await m.start()
+    try:
+        while True:
+            tasks = [m.scan_once() for m in monitors]
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(3)
+    finally:
+        for m in monitors:
+            await m.stop()
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    gui = ChatGUI()
-    gui.show()
-    sys.exit(app.exec())
+    asyncio.run(run_loop())

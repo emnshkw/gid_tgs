@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QUrl, QTimer
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 
-API_BASE = "http://127.0.0.1:8000/api"
+API_BASE = "http://5.129.253.254/api"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class ChatGUI(QWidget):
