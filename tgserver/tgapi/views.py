@@ -20,10 +20,22 @@ class MessageListCreateView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['dialog', 'delivered', 'telegram_id']
     ordering_fields = ['date']
+    def get_queryset(self):
+        dialog_id = self.kwargs.get("dialog_pk")
+        qs = Message.objects.filter(dialog_id=dialog_id).order_by("date")
+
+        # 👇 отмечаем все сообщения в этом диалоге как прочитанные
+        qs.filter(is_read=False).update(is_read=True)
+
+        return
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
 
+
+class MessageUpdateDeliveredView(generics.UpdateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
     def get_queryset(self):
         dialog_id = self.kwargs.get("dialog_pk")
         qs = Message.objects.filter(dialog_id=dialog_id).order_by("date")
@@ -32,9 +44,6 @@ class MessageViewSet(viewsets.ModelViewSet):
         qs.filter(is_read=False).update(is_read=True)
 
         return qs
-class MessageUpdateDeliveredView(generics.UpdateAPIView):
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
 
     def patch(self, request, *args, **kwargs):
         message = self.get_object()
