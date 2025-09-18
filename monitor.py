@@ -97,7 +97,8 @@ def create_message(dialog_id, sender_name, text, date_iso,
             rchk = requests.get(q)
             rchk.raise_for_status()
             if rchk.json():
-                print(rchk.json())
+                if text == 'пидор':
+                    print(rchk.json())
                 # Уже есть сообщение с таким telegram_id в этом диалоге
                 return False
     except Exception:
@@ -116,10 +117,11 @@ def create_message(dialog_id, sender_name, text, date_iso,
     }
     try:
         r = requests.post(f"{API_BASE}/messages/", json=payload)
-        try:
-            print(r.json())
-        except:
-            pass
+        if text == 'пидор':
+            try:
+                print(r.json())
+            except:
+                pass
         if r.status_code in (200, 201):
             return True
         else:
