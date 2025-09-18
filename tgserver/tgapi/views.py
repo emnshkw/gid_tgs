@@ -45,7 +45,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
             Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-class MessageViewSet(viewsets.ModelViewSet):
+class MessageMediaListCreateView(generics.ListCreateAPIView):
     queryset = Message.objects.all().order_by("date")
     serializer_class = MessageSerializer
     parser_classes = [MultiPartParser, FormParser]
