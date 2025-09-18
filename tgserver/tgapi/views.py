@@ -23,7 +23,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
     def get(self,request,*args,**kwargs):
         dialog_id = request.GET.get('dialog', None)
         if dialog_id is not None:
-            dialog_id = int(dialog_id)
+            dialog_id = int(dialog_id.replace("'",'').replace('/',''))
         print(dialog_id)
         print(len(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False)))
         qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
