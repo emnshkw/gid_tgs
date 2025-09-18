@@ -30,7 +30,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
         # 👇 отмечаем все сообщения в этом диалоге как прочита
 
-        serializer = MessageSerializer(Message.objects.get(dialog=Dialog.objects.get(id=dialog_id)))
+        serializer = MessageSerializer(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id)),many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
