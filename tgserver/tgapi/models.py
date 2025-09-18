@@ -24,7 +24,7 @@ class Message(models.Model):
     delivered = models.BooleanField(default=False)
     account_phone = models.CharField(max_length=20, blank=True,null=True)
     date = models.DateTimeField()
-
+    is_read = models.BooleanField(default=False)
     class Meta:
         verbose_name = 'Сообщение'
         verbose_name_plural = 'Сообщения'
