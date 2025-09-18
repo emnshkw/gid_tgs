@@ -25,6 +25,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
         messages = Message.objects.all()
         telegram_id = request.GET.get('telegram_id', None)
         delivered = request.GET.get('delivered', None)
+        from_gui = request.GET.get('from_gui',None)
         if dialog_id is not None:
             dialog_id = int(dialog_id.replace("'",'').replace('/',''))
             messages = messages.filter(dialog=Dialog.objects.get(id=dialog_id))
@@ -40,7 +41,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
             telegram_id = int(telegram_id.replace("'", '').replace('/', ''))
             qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
             messages = messages.filter(telegram_id=telegram_id)
-        if dialog_id is not None and telegram_id is None:
+        if dialog_id is not None and telegram_id is None and from_gui is not None:
             Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
