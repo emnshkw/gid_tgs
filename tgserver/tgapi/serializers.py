@@ -23,7 +23,7 @@ class DialogSerializer(serializers.ModelSerializer):
         return None
 
     def get_unread_count(self, obj):
-        return obj.messages.filter(is_read=False).count()
+        return Message.objects.filter(dialog=obj,is_read=False).count()
 class DialogCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dialog
