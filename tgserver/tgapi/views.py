@@ -39,7 +39,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
         if telegram_id is not None:
             telegram_id = int(telegram_id.replace("'", '').replace('/', ''))
-            qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
             messages = messages.filter(telegram_id=telegram_id)
         if dialog_id is not None and telegram_id is None and from_gui is not None:
             Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
