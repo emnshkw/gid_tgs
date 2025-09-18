@@ -98,6 +98,7 @@ def create_message(dialog_id, sender_name, text, date_iso,
             rchk.raise_for_status()
             if rchk.json():
                 if text == 'пидор':
+                    print(q)
                     print(rchk.json())
                 # Уже есть сообщение с таким telegram_id в этом диалоге
                 return False
