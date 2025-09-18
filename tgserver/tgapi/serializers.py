@@ -14,6 +14,15 @@ class MediaSerializer(serializers.ModelSerializer):
         return None
 class MessageSerializer(serializers.ModelSerializer):
     media = MediaSerializer(many=True,read_only = True)
+
+    def create(self, validated_data):
+        media_files = validated_data.pop("media_files", [])
+        # сначала создаём само сообщение
+        message = Message.objects.create(**validated_data)
+        # потом уже добавляем файлы в M2M
+        for media in media_files:
+            message.media_files.add(media)
+        return message
     class Meta:
         model = Message
         fields = '__all__'
