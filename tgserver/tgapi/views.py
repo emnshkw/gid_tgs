@@ -36,7 +36,7 @@ class MessageViewSet(viewsets.ModelViewSet):
 class MessageUpdateDeliveredView(generics.UpdateAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    def get_queryset(self):
+    def get(self,request,*args,**kwargs):
         dialog_id = self.kwargs.get("dialog_pk")
         qs = Message.objects.filter(dialog_id=dialog_id).order_by("date")
 
