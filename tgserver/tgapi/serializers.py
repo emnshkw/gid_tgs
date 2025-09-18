@@ -16,7 +16,7 @@ class DialogSerializer(serializers.ModelSerializer):
         extra_fields = ["last_message"]
 
     def get_last_message(self, obj):
-        last_msg = obj.messages.order_by("-date").first()
+        last_msg = Message.objects.filter(dialog=obj).order_by("-date").first()
         if last_msg:
             return MessageSerializer(last_msg).data
         return None
