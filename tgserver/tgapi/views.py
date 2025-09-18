@@ -30,6 +30,8 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
     serializer_class = MessageSerializer
     def get(self,request,*args,**kwargs):
         dialog_id = request.GET.get('q', None)
+        print(dialog_id)
+        print(len(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False)))
         qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
 
         # 👇 отмечаем все сообщения в этом диалоге как прочитанные
