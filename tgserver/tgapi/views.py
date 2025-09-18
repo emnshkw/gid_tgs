@@ -20,14 +20,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['dialog', 'delivered', 'telegram_id']
     ordering_fields = ['date']
-    def get_queryset(self):
-        dialog_id = self.kwargs.get("dialog_pk")
-        qs = Message.objects.filter(dialog_id=dialog_id).order_by("date")
-
-        # 👇 отмечаем все сообщения в этом диалоге как прочитанные
-        qs.filter(is_read=False).update(is_read=True)
-
-        return
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
@@ -43,7 +35,8 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         # 👇 отмечаем все сообщения в этом диалоге как прочитанные
         qs.filter(is_read=False).update(is_read=True)
 
-        return qs
+        serializer = MessageSerializer(Message.objects.get(dialog=Dialog.objects.get(id=dialog_id)))
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, *args, **kwargs):
         message = self.get_object()
