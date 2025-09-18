@@ -28,8 +28,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
         print(len(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False)))
         qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
 
-        # 👇 отмечаем все сообщения в этом диалоге как прочитанные
-        qs.filter(is_read=False).update(is_read=True)
+        # 👇 отмечаем все сообщения в этом диалоге как прочита
 
         serializer = MessageSerializer(Message.objects.get(dialog=Dialog.objects.get(id=dialog_id)))
         return Response(serializer.data, status=status.HTTP_200_OK)
