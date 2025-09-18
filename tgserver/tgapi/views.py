@@ -29,7 +29,11 @@ class MessageListCreateView(generics.ListCreateAPIView):
             qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
 
         # 👇 отмечаем все сообщения в этом диалоге как прочита
-
+        delivered = request.GET.get('delivered', None)
+        if delivered is not None:
+            delivered = bool(delivered.replace("'",'').replace('/',''))
+            serializer = MessageSerializer(Message.objects.filter(delivered=False), many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         serializer = MessageSerializer(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id)),many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class MessageViewSet(viewsets.ModelViewSet):
