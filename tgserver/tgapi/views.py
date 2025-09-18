@@ -23,24 +23,25 @@ class MessageListCreateView(generics.ListCreateAPIView):
     def get(self,request,*args,**kwargs):
         dialog_id = request.GET.get('dialog', None)
         messages = Message.objects.all()
+        telegram_id = request.GET.get('telegram_id', None)
+        delivered = request.GET.get('delivered', None)
         if dialog_id is not None:
             dialog_id = int(dialog_id.replace("'",'').replace('/',''))
-            print(dialog_id)
-            print(len(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False)))
-            qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
             messages = messages.filter(dialog=Dialog.objects.get(id=dialog_id))
 
         # 👇 отмечаем все сообщения в этом диалоге как прочита
-        delivered = request.GET.get('delivered', None)
+
         if delivered is not None:
             delivered = bool(delivered.replace("'",'').replace('/',''))
             serializer = MessageSerializer(Message.objects.filter(delivered=False), many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        telegram_id = request.GET.get('telegram_id',None)
+
         if telegram_id is not None:
             telegram_id = int(telegram_id.replace("'", '').replace('/', ''))
             qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
             messages = messages.filter(telegram_id=telegram_id)
+        if dialog_id is not None and telegram_id is None:
+            Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class MessageViewSet(viewsets.ModelViewSet):
