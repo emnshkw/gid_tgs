@@ -60,6 +60,7 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
 
         # прикрепляем файлы, если есть
         files = request.FILES.getlist("files")
+        print(len(files))
         for f in files:
             ext = f.name.split(".")[-1].lower()
             if ext in ["jpg", "jpeg", "png"]:
