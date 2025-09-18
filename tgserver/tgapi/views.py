@@ -1,6 +1,7 @@
 from rest_framework import generics
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from .models import Dialog, Message
+from .models import Dialog, Message, Media
 from .serializers import DialogSerializer, MessageSerializer
 from rest_framework import status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
@@ -45,8 +46,36 @@ class MessageListCreateView(generics.ListCreateAPIView):
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all().order_by("date")
     serializer_class = MessageSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        # создаём сообщение
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        message = serializer.save()
+
+        # прикрепляем файлы, если есть
+        files = request.FILES.getlist("files")
+        for f in files:
+            ext = f.name.split(".")[-1].lower()
+            if ext in ["jpg", "jpeg", "png"]:
+                mtype = "photo"
+            elif ext in ["mp4"]:
+                mtype = "video"
+            elif ext in ["ogg"]:
+                mtype = "voice"
+            else:
+                mtype = "document"
+
+            media = Media.objects.create(file=f, media_type=mtype)
+            message.media.add(media)
+
+        message.save()
+        return Response(self.get_serializer(message).data, status=status.HTTP_201_CREATED)
 
 class MessageUpdateDeliveredView(generics.UpdateAPIView):
     queryset = Message.objects.all()

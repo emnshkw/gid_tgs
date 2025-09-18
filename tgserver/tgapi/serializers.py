@@ -1,7 +1,19 @@
 from rest_framework import serializers
-from .models import Dialog, Message
+from .models import Dialog, Message, Media
+class MediaSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Media
+        fields = ["id", "media_type", "file", "url"]
+
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
 class MessageSerializer(serializers.ModelSerializer):
+    media = MediaSerializer(many=True,read_only = True)
     class Meta:
         model = Message
         fields = '__all__'

@@ -25,6 +25,7 @@ class Message(models.Model):
     account_phone = models.CharField(max_length=20, blank=True,null=True)
     date = models.DateTimeField()
     is_read = models.BooleanField(default=False)
+    media = models.ManyToManyField("Media", related_name="messages", blank=True)
     class Meta:
         verbose_name = 'Сообщение'
         verbose_name_plural = 'Сообщения'
@@ -33,3 +34,16 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender_name}: {self.text[:30]}"
+
+class Media(models.Model):
+    file = models.FileField(upload_to="media/")
+    media_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("photo", "Фото"),
+            ("video", "Видео"),
+            ("voice", "Голос"),
+            ("document", "Документ"),
+        ],
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
