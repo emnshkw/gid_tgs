@@ -9,6 +9,7 @@ class MessageSerializer(serializers.ModelSerializer):
 class DialogSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
     last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Dialog
@@ -20,6 +21,9 @@ class DialogSerializer(serializers.ModelSerializer):
         if last_msg:
             return MessageSerializer(last_msg).data
         return None
+
+    def get_unread_count(self, obj):
+        return obj.messages.filter(is_read=False).count()
 class DialogCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dialog
