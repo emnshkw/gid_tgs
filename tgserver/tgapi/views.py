@@ -21,7 +21,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['dialog', 'delivered', 'telegram_id']
     ordering_fields = ['date']
     def get(self,request,*args,**kwargs):
-        dialog_id = request.GET.get('q', None)
+        dialog_id = request.GET.get('dialog', None)
         print(dialog_id)
         print(len(Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False)))
         qs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id),is_read=False).update(is_read=True)
