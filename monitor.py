@@ -171,6 +171,58 @@ class AccountMonitor:
 
                 # Получаем историю (не очень большой лимит чтобы не получать FloodWait)
                 try:
+                    # --- Отправка сообщений из Django для этого аккаунта ---
+                    undelivered = get_undelivered_messages_for_account(self.phone)
+                    if undelivered:
+                        print(f"[{self.phone}] found {len(undelivered)} undelivered messages to send")
+                    for msg in undelivered:
+                        try:
+                            # Получаем диалог, чтобы узнать chat_id
+                            try:
+                                dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/")
+
+                                dlg_resp.raise_for_status()
+                                dlg = dlg_resp.json()
+                                for d in dlg:
+                                    if d['id'] == msg['dialog']:
+                                        chat_id = d["chat_id"]
+                                        break
+                            except Exception as e:
+                                print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
+                                continue
+
+                            # Полный путь к файлу, если задан
+                            if msg.get("media_file") and msg.get("media_type"):
+                                mt = msg["media_type"]
+                                # media_file хранится как относительный путь от BASE_DIR
+                                mf = os.path.join(BASE_DIR, msg["media_file"])
+                                if mt == "photo":
+                                    await self.client.send_photo(chat_id, mf, caption=msg.get("text") or None)
+                                elif mt == "video":
+                                    await self.client.send_video(chat_id, mf, caption=msg.get("text") or None)
+                                elif mt == "voice":
+                                    await self.client.send_voice(chat_id, mf)
+                                elif mt == "video_note":
+                                    await self.client.send_video_note(chat_id, mf)
+                                elif mt == "document":
+                                    await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
+                                else:
+                                    # fallback: отправим как документ
+                                    await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
+                            else:
+                                await self.client.send_message(chat_id, msg.get("text") or "")
+
+                            # Помечаем как доставленное
+                            mark_delivered(msg["id"], None)
+                            print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
+                        except FloodWait as e:
+                            wait = int(e.value) + 1
+                            print(f"[{self.phone}] FloodWait {wait}s while sending, sleeping...")
+                            await asyncio.sleep(wait)
+                        except Exception as e:
+                            print(f"[{self.phone}] Send error for message {msg.get('id')}: {e}")
+
+
                     async for msg in self.client.get_chat_history(chat_id, limit=0):
                         # Пропускаем системные пустые сообщения
                         if not getattr(msg, "text", None) and not (getattr(msg, "media", None) or getattr(msg, "photo", None) or getattr(msg, "document", None)):
@@ -240,15 +292,15 @@ class AccountMonitor:
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
                         if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
-                            undelivered = get_undelivered_messages_for_account(self.phone)
-                            if undelivered:
-                                print(f"[{self.phone}] найдено {len(undelivered)} недоставленных, ищем нужное подставляем медиа")
-                            for msg in undelivered:
-                                if msg['dialog'] == dialog_id:
-                                    if msg['text'] == text and msg['sender'] == sender:
-                                        mark_delivered(msg,created['id'])
-                                        print("Пометили с переносом текста..")
-                                        break
+                            # undelivered = get_undelivered_messages_for_account(self.phone)
+                            # if undelivered:
+                            #     print(f"[{self.phone}] найдено {len(undelivered)} недоставленных, ищем нужное подставляем медиа")
+                            # for msg in undelivered:
+                            #     if msg['dialog'] == dialog_id:
+                            #         if msg['text'] == text and msg['sender'] == sender:
+                            #             mark_delivered(msg,created['id'])
+                            #             print("Пометили с переносом текста..")
+                            #             break
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
@@ -256,56 +308,7 @@ class AccountMonitor:
                 except Exception as e:
                     print(f"[{self.phone}] history loop error for chat {chat_id}: {e}")
 
-            # --- Отправка сообщений из Django для этого аккаунта ---
-            undelivered = get_undelivered_messages_for_account(self.phone)
-            if undelivered:
-                print(f"[{self.phone}] found {len(undelivered)} undelivered messages to send")
-            for msg in undelivered:
-                try:
-                    # Получаем диалог, чтобы узнать chat_id
-                    try:
-                        dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/")
 
-                        dlg_resp.raise_for_status()
-                        dlg = dlg_resp.json()
-                        for d in dlg:
-                            if d['id'] == msg['dialog']:
-                                chat_id = d["chat_id"]
-                                break
-                    except Exception as e:
-                        print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
-                        continue
-
-                    # Полный путь к файлу, если задан
-                    if msg.get("media_file") and msg.get("media_type"):
-                        mt = msg["media_type"]
-                        # media_file хранится как относительный путь от BASE_DIR
-                        mf = os.path.join(BASE_DIR, msg["media_file"])
-                        if mt == "photo":
-                            await self.client.send_photo(chat_id, mf, caption=msg.get("text") or None)
-                        elif mt == "video":
-                            await self.client.send_video(chat_id, mf, caption=msg.get("text") or None)
-                        elif mt == "voice":
-                            await self.client.send_voice(chat_id, mf)
-                        elif mt == "video_note":
-                            await self.client.send_video_note(chat_id, mf)
-                        elif mt == "document":
-                            await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
-                        else:
-                            # fallback: отправим как документ
-                            await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
-                    else:
-                        await self.client.send_message(chat_id, msg.get("text") or "")
-
-                    # Помечаем как доставленное
-                    mark_delivered(msg["id"],None)
-                    print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
-                except FloodWait as e:
-                    wait = int(e.value) + 1
-                    print(f"[{self.phone}] FloodWait {wait}s while sending, sleeping...")
-                    await asyncio.sleep(wait)
-                except Exception as e:
-                    print(f"[{self.phone}] Send error for message {msg.get('id')}: {e}")
 
         except Exception as e:
             print(f"[{self.phone}] scan error:", e)
