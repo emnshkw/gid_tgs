@@ -212,13 +212,13 @@ class AccountMonitor:
                                     mf = media_files[0]
                                     media = self.get_input_media(mf['file'], caption=msg['text'] or "")
                                     if isinstance(media, InputMediaPhoto):
-                                        await self.client.send_photo(chat_id, mf['file'],
+                                        await self.client.send_photo(chat_id, f"http://5.129.253.254{mf['file']}",
                                                                 caption=msg['text'] or "")
                                     elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(dialog.telegram_id, mf['file'],
+                                        await self.client.send_video(dialog.telegram_id, f"http://5.129.253.254{mf['file']}",
                                                                 caption=msg['text'] or "")
                                     else:
-                                        await self.client.send_document(dialog.telegram_id, mf['file'],
+                                        await self.client.send_document(dialog.telegram_id, f"http://5.129.253.254{mf['file']}",
                                                                    caption=msg['text'] or "")
                                 else:
                                     # Несколько файлов → альбом
