@@ -115,23 +115,22 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         "delivered": delivered,
         "telegram_id": telegram_id
     }
-    files = []
+    files_to_send = []
     for m in media:
         path = m.get("file_path")
         if not path or not os.path.exists(path):
             continue
-        f = open(path, "rb")  # используем path, а не m["file_path"]
-        files.append(("files", (os.path.basename(path), f)))
+        f = open(path, "rb")
+        files_to_send.append(("files", (os.path.basename(path), f)))
     try:
         try:
-            url = f'{API_BASE}/messages_media/'
-            r = requests.post(url, data=payload, files=files)
-            if r.status_code not in (200, 201):
-                print("Ошибка создания сообщения:", r.text)
-            else:
-                print("Сообщение с медиа добавлено в Django")
+            r = requests.post(f"{API_BASE}/messages_media/", data=payload, files=files_to_send)
+                if r.status_code not in (200, 201):
+                    print("Ошибка создания сообщения:", r.text)
+                else:
+                    print("Сообщение с медиа добавлено в Django")
         finally:
-            for _, (_, f) in files:
+            for _, (_, f) in files_to_send:
                 f.close()
 
         if r.status_code in (200, 201):
