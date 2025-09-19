@@ -97,7 +97,10 @@ def create_message(dialog_id, sender_name, text, date_iso,
             rchk = requests.get(q)
             rchk.raise_for_status()
             if rchk.json():
-
+                if text == 'пидор':
+                    print(q)
+                    print(rchk.json())
+                # Уже есть сообщение с таким telegram_id в этом диалоге
                 return False
     except Exception:
         # если проверка упала — продолжим попытку создания (без стопа)
@@ -114,14 +117,14 @@ def create_message(dialog_id, sender_name, text, date_iso,
         "telegram_id": telegram_id
     }
     try:
-        r = requests.post(f"{API_BASE}/messages_media/", data=payload)
+        r = requests.post(f"{API_BASE}/messages/", json=payload)
         if text == 'пидор':
             try:
                 print(r.json())
             except:
                 pass
         if r.status_code in (200, 201):
-            return r.json()
+            return True
         else:
             print("create_message failed:", r.status_code, r.text)
             return False
@@ -129,9 +132,9 @@ def create_message(dialog_id, sender_name, text, date_iso,
         print("create_message error:", e)
         return False
 
-def mark_delivered(message_id,created):
+def mark_delivered(message_id):
     try:
-        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created':created})
+        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
         print(f"Marked delivered: {message_id}")
     except Exception as e:
         print("mark_delivered error:", e)
@@ -241,14 +244,11 @@ class AccountMonitor:
                             print(f"[{self.phone}] media processing error msg {getattr(msg,'id',None)}: {e}")
 
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
-                        print(msg)
                         created = create_message(dialog_id, sender, text, date_iso,
                                                  media_file=media_file, media_type=media_type,
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
-                        if created != False:
+                        if created:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
-                        else:
-                            print("Не создалось, так как - ")
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
@@ -298,10 +298,7 @@ class AccountMonitor:
                         await self.client.send_message(chat_id, msg.get("text") or "")
 
                     # Помечаем как доставленное
-                    try:
-                        mark_delivered(msg["id"],created)
-                    except:
-                        print(f"Не смогли отметить прочитанным")
+                    mark_delivered(msg["id"])
                     print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
