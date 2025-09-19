@@ -15,7 +15,7 @@ with open(API_FILE) as f:
 
 def add_session():
     while True:
-        phone = input("Введите номер телефона для новой сессии: ")
+        phone = input("Введите номер телефона для новой сессии: ").replace(' ','').replace('+','')
 
         # Перехватываем input Pyrogram, чтобы автоматически вставлять номер
         orig_input = builtins.input
