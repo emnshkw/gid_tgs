@@ -162,7 +162,51 @@ class AccountMonitor:
         else:
             return InputMediaDocument(file_path, caption=caption)
 
+    async def _extract_media_from_msg(self, msg):
+        """
+        Вспомогательная функция: извлекает медиа из одного сообщения
+        """
+        media_list = []
+        try:
+            if msg.photo:
+                file_path = await self.client.download_media(msg, file_name=None)
+                media_list.append({"file_path": file_path, "media_type": "photo"})
+            elif msg.video:
+                file_path = await self.client.download_media(msg, file_name=None)
+                media_list.append({"file_path": file_path, "media_type": "video"})
+            elif msg.voice:
+                file_path = await self.client.download_media(msg, file_name=None)
+                media_list.append({"file_path": file_path, "media_type": "voice"})
+            elif msg.video_note:
+                file_path = await self.client.download_media(msg, file_name=None)
+                media_list.append({"file_path": file_path, "media_type": "video_note"})
+            elif msg.document:
+                file_path = await self.client.download_media(msg, file_name=None)
+                media_list.append({"file_path": file_path, "media_type": "document"})
+        except Exception as e:
+            print(f"Ошибка скачивания медиа для msg {msg.id}: {e}")
+        return media_list
+    async def get_media_files(self, msg):
+        """
+        Получает список медиа-файлов из сообщения или альбома.
+        client: pyrogram.Client
+        msg: pyrogram.types.Message
+        Возвращает список словарей {"file_path": ..., "media_type": ...}
+        """
+        media_list = []
 
+        # --- Если сообщение часть альбома ---
+        if msg.media_group_id:
+            # Получаем все сообщения в этом альбоме
+            album_msgs = [m async for m in self.client.get_chat_history(msg.chat.id, limit=100)
+                          if m.media_group_id == msg.media_group_id]
+
+            for m in album_msgs:
+                media_list.extend(await self._extract_media_from_msg(m))
+        else:
+            media_list.extend(await self._extract_media_from_msg(msg))
+
+        return media_list
 
     async def stop(self):
         try:
@@ -313,48 +357,9 @@ class AccountMonitor:
                             sender = "Unknown"
                         text = getattr(msg, "text", "") or ""
 
-                        media_file = None
-                        media_type = None
-
-                        # Определяем тип медиа и путь
-                        try:
-                            if getattr(msg, "photo", None):
-                                media_type = "photo"
-                                filename = f"{self.phone.replace('+','')}_{msg.id}_photo.jpg"
-                                file_path = os.path.join(MEDIA_DIR, filename)
-                            elif getattr(msg, "video", None):
-                                media_type = "video"
-                                filename = f"{self.phone.replace('+','')}_{msg.id}_video.mp4"
-                                file_path = os.path.join(MEDIA_DIR, filename)
-                            elif getattr(msg, "voice", None):
-                                media_type = "voice"
-                                filename = f"{self.phone.replace('+','')}_{msg.id}_voice.ogg"
-                                file_path = os.path.join(MEDIA_DIR, filename)
-                            elif getattr(msg, "video_note", None):
-                                media_type = "video_note"
-                                filename = f"{self.phone.replace('+','')}_{msg.id}_video_note.mp4"
-                                file_path = os.path.join(MEDIA_DIR, filename)
-                            elif getattr(msg, "document", None):
-                                media_type = "document"
-                                name = msg.document.file_name or f"{self.phone.replace('+','')}_{msg.id}_doc"
-                                filename = f"{self.phone.replace('+','')}_{name}"
-                                file_path = os.path.join(MEDIA_DIR, filename)
-                            else:
-                                file_path = None
-
-                            if file_path:
-                                if not os.path.exists(file_path):
-                                    try:
-                                        await self.client.download_media(msg, file_name=file_path)
-                                        print(f"[{self.phone}] downloaded media for msg {msg.id} -> {file_path}")
-                                    except Exception as e:
-                                        print(f"[{self.phone}] download_media error for msg {msg.id}: {e}")
-                                        file_path = None
-                                if file_path:
-                                    # сохраняем относительный путь от BASE_DIR
-                                    media_file = os.path.relpath(file_path, BASE_DIR)
-                        except Exception as e:
-                            print(f"[{self.phone}] media processing error msg {getattr(msg,'id',None)}: {e}")
+                        files = await self.get_media_files(msg)
+                        for f in files:
+                            print(f"Файл: {f['file_path']}, тип: {f['media_type']}")
 
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
                         created = create_message(dialog_id, sender, text, date_iso,
