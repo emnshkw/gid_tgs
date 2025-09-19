@@ -245,8 +245,9 @@ class AccountMonitor:
                                 print(f"[{self.phone}] найдено {len(undelivered)} недоставленных, ищем нужное подставляем медиа")
                             for msg in undelivered:
                                 if msg['dialog'] == dialog_id:
-                                    if msg['text'] == text and msg['sender'] == sender and msg['delivered'] == False:
+                                    if msg['text'] == text and msg['sender'] == sender:
                                         mark_delivered(msg,created['id'])
+                                        print("Пометили с переносом текста..")
                                         break
                 except FloodWait as e:
                     wait = int(e.value) + 1
