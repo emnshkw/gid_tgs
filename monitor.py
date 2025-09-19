@@ -115,10 +115,10 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         "delivered": delivered,
         "telegram_id": telegram_id
     }
-    files = []
+    files = {'files':[]}
     if media:
         for f in media:
-            files.append(f)
+            files['files'].append(f)
     try:
         r = requests.post(f"{API_BASE}/messages/", json=payload,files=files)
         if r.status_code in (200, 201):
