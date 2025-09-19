@@ -95,12 +95,21 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
 
         message = self.get_object()
         if request.data.get('created') is not None:
+            old_media = list(message.media.all())
             msg = Message.objects.get(id=request.data.get('created')['id'])
-            for media in message.media.all():
-                if media not in msg.media.all():
-                    msg.media.add(media)
-            # msg.media = message.media
+            if old_media:
+                msg.media.add(*old_media)
+
+            # сохраняем
             msg.save()
+
+            # удаляем старое сообщение
+
+            # for media in message.media.all():
+            #     if media not in msg.media.all():
+            #         msg.media.add(media)
+            # # msg.media = message.media
+            # msg.save()
         message.delete()
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
