@@ -261,17 +261,19 @@ class AccountMonitor:
                                                 tmp.write(chunk)
                                             tmp.close()
                                             tmp_files.append(tmp.name)
-                                        ext = os.path.splitext(url)[1].lower()
-                                        if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                                        ext = tmp.name.lower().split(".")[-1]
+                                        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                                             photos.append(self.get_input_media(tmp.name, caption=caption))  # подпись только к первому
-                                        elif ext in [".mp4", ".mkv"]:
+                                        elif ext in ["mp4", "mov", "avi", "mkv"]:
                                             videos.append(self.get_input_media(tmp.name, caption=caption))
                                         else:
                                             documents.append(self.get_input_media(tmp.name, caption=caption))
+
                                         # media_group.append(self.get_input_media(tmp.name, caption=caption))
                                     # print(media_group)
                                     for media_group in [photos,videos,documents]:
-                                        if media_group:
+                                        print(f'{media_group} - {len(media_group)}')
+                                        if len(media_group) != 0:
                                             await self.client.send_media_group(chat_id, media_group)
 
                             else:
