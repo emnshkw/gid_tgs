@@ -250,6 +250,7 @@ class AccountMonitor:
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
                         if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
+                        print(created)
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
@@ -302,7 +303,7 @@ class AccountMonitor:
                     try:
                         mark_delivered(msg["id"],created)
                     except:
-                        print(f"Не смогли отметить прочитанным, created - {created}")
+                        print(f"Не смогли отметить прочитанным")
                     print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
