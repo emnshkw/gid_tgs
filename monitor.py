@@ -1,5 +1,6 @@
 import asyncio
 import os
+import tempfile
 from datetime import datetime
 import requests
 from pyrogram import Client
@@ -212,14 +213,28 @@ class AccountMonitor:
                                     mf = media_files[0]
                                     media = self.get_input_media(mf['file'], caption=msg['text'] or "")
                                     print(f"http://5.129.253.254{mf['file']}")
+
+                                    url = f"http://5.129.253.254{mf['file']}"
+
+                                    # Скачиваем файл во временный
+                                    r = requests.get(url, stream=True)
+                                    if r.status_code != 200:
+                                        print(f"Не удалось скачать файл {url}")
+                                        continue
+
+                                    suffix = os.path.splitext(url)[-1]
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                                        for chunk in r.iter_content(1024):
+                                            tmp.write(chunk)
+                                        tmp_path = tmp.name
                                     if isinstance(media, InputMediaPhoto):
-                                        await self.client.send_photo(chat_id, f"http://5.129.253.254{mf['file']}",
+                                        await self.client.send_photo(chat_id, tmp_path,
                                                                 caption=msg['text'] or "")
                                     elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(dialog.telegram_id, f"http://5.129.253.254{mf['file']}",
+                                        await self.client.send_video(dialog.telegram_id, tmp_path,
                                                                 caption=msg['text'] or "")
                                     else:
-                                        await self.client.send_document(dialog.telegram_id, f"http://5.129.253.254{mf['file']}",
+                                        await self.client.send_document(dialog.telegram_id, tmp_path,
                                                                    caption=msg['text'] or "")
                                 else:
                                     # Несколько файлов → альбом
