@@ -231,10 +231,10 @@ class AccountMonitor:
                                         await self.client.send_photo(chat_id, tmp_path,
                                                                 caption=msg['text'] or "")
                                     elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(dialog.telegram_id, tmp_path,
+                                        await self.client.send_video(chat_id, tmp_path,
                                                                 caption=msg['text'] or "")
                                     else:
-                                        await self.client.send_document(dialog.telegram_id, tmp_path,
+                                        await self.client.send_document(chat_id, tmp_path,
                                                                    caption=msg['text'] or "")
                                 else:
                                     # Несколько файлов → альбом
