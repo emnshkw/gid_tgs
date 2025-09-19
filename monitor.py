@@ -240,6 +240,9 @@ class AccountMonitor:
                                     # Несколько файлов → альбом
                                     media_group = []
                                     tmp_files = []
+                                    photos = []
+                                    videos = []
+                                    documents = []
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
                                         print(f"http://5.129.253.254{mf['file']}")
@@ -258,9 +261,17 @@ class AccountMonitor:
                                                 tmp.write(chunk)
                                             tmp.close()
                                             tmp_files.append(tmp.name)
-                                        media_group.append(self.get_input_media(tmp.name, caption=caption))
+                                        ext = os.path.splitext(url)[1].lower()
+                                        if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                                            photos.append(self.get_input_media(tmp.name, caption=caption))  # подпись только к первому
+                                        elif ext in [".mp4", ".mkv"]:
+                                            videos.append(self.get_input_media(tmp.name, caption=caption))
+                                        else:
+                                            documents.append(self.get_input_media(tmp.name, caption=caption))
+                                        # media_group.append(self.get_input_media(tmp.name, caption=caption))
                                     print(media_group)
-                                    await self.client.send_media_group(chat_id, media_group)
+                                    for media_group in [photos,videos,documents]:
+                                        await self.client.send_media_group(chat_id, media_group)
 
                             else:
                                 # Только текст
