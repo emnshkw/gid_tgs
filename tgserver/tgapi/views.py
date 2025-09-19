@@ -92,8 +92,12 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def delete(self, request, *args, **kwargs):
-        print(request.data.get('created'))
+
         message = self.get_object()
+        if request.data.get('created') is not None:
+            msg = Message.objects.get(id=request.data.get('created')['id'])
+            msg.media = message.media
+            msg.save()
         message.delete()
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)
