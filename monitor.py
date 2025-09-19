@@ -239,8 +239,25 @@ class AccountMonitor:
                                 else:
                                     # Несколько файлов → альбом
                                     media_group = []
+                                    tmp_files = []
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
+                                        print(f"http://5.129.253.254{mf['file']}")
+
+                                        url = f"http://5.129.253.254{mf['file']}"
+
+                                        # Скачиваем файл во временный
+                                        r = requests.get(url, stream=True)
+                                        if r.status_code != 200:
+                                            print(f"Не удалось скачать файл {url}")
+                                            continue
+
+                                        suffix = os.path.splitext(url)[-1]
+                                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                                            for chunk in r.iter_content(1024):
+                                                tmp.write(chunk)
+                                            tmp.close()
+                                            tmp_files.append(tmp.name)
                                         media_group.append(self.get_input_media(mf['file'], caption=caption))
                                     await self.client.send_media_group(chat_id, media_group)
 
