@@ -204,7 +204,7 @@ class AccountMonitor:
                                 print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
                                 continue
 
-                            if msg['media'].exists():
+                            if msg['media']:
                                 media_files = list(msg['media'])
 
                                 if len(media_files) == 1:
