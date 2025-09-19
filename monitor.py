@@ -242,11 +242,11 @@ class AccountMonitor:
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
                                         media_group.append(self.get_input_media(mf['file'], caption=caption))
-                                    await self.client.send_media_group(dialog.telegram_id, media_group)
+                                    await self.client.send_media_group(chat_id, media_group)
 
                             else:
                                 # Только текст
-                                await self.client.send_message(dialog.telegram_id, msg['text'] or "")
+                                await self.client.send_message(chat_id, msg['text'] or "")
 
                             # Помечаем как доставленное
                             mark_delivered(msg["id"], None)
