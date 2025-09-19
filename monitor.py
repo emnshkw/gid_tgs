@@ -244,6 +244,7 @@ class AccountMonitor:
                             print(f"[{self.phone}] media processing error msg {getattr(msg,'id',None)}: {e}")
 
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
+                        print(msg)
                         created = create_message(dialog_id, sender, text, date_iso,
                                                  media_file=media_file, media_type=media_type,
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
