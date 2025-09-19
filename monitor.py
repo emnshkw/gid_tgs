@@ -119,10 +119,9 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     for m in media:
         path = m.get("file_path")
         if not path or not os.path.exists(path):
-            continue  # п
-        f = open(m["file_path"], "rb")
-
-        files.append(("files", (os.path.basename(m["file_path"]), f)))
+            continue
+        f = open(path, "rb")  # используем path, а не m["file_path"]
+        files.append(("files", (os.path.basename(path), f)))
     try:
         try:
             url = f'{API_BASE}/messages_media/'
@@ -132,8 +131,9 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
             else:
                 print("Сообщение с медиа добавлено в Django")
         finally:
-            for _, (name, f) in files:
+            for _, (_, f) in files:
                 f.close()
+
         if r.status_code in (200, 201):
             return r.json()
         else:
