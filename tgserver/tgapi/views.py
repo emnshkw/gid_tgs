@@ -94,9 +94,9 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
     def delete(self, request, *args, **kwargs):
 
         message = self.get_object()
-        if request.data.get('created') is not None:
+        if request.data.get('created_d') is not None:
             old_media = list(message.media.all())
-            msg = Message.objects.get(id=request.data.get('created')['id'])
+            msg = Message.objects.get(id=request.data.get('created_id'))
             if old_media:
                 msg.media.add(*old_media)
             print("Перенесли медиа")

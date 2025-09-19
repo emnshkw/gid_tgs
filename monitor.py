@@ -84,8 +84,7 @@ def get_undelivered_messages_for_account(account_phone):
         print("get_undelivered_messages_for_account error:", e)
         return []
 
-def create_message(dialog_id, sender_name, text, date_iso,
-                   media_file=None, media_type=None, delivered=True, telegram_id=None):
+def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None):
     """
     Создаём сообщение через API.
     Если передан telegram_id — проверяем уникальность (dialog + telegram_id).
@@ -111,20 +110,13 @@ def create_message(dialog_id, sender_name, text, date_iso,
         "sender_name": sender_name,
         "text": text or "",
         "date": date_iso,
-        "media_file": media_file,
-        "media_type": media_type,
         "delivered": delivered,
         "telegram_id": telegram_id
     }
     try:
         r = requests.post(f"{API_BASE}/messages/", json=payload)
-        if text == 'пидор':
-            try:
-                print(r.json())
-            except:
-                pass
         if r.status_code in (200, 201):
-            return True
+            return r.json()
         else:
             print("create_message failed:", r.status_code, r.text)
             return False
@@ -132,9 +124,9 @@ def create_message(dialog_id, sender_name, text, date_iso,
         print("create_message error:", e)
         return False
 
-def mark_delivered(message_id):
+def mark_delivered(message_id,new_id):
     try:
-        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
+        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created_id':new_id})
         print(f"Marked delivered: {message_id}")
     except Exception as e:
         print("mark_delivered error:", e)
@@ -245,10 +237,17 @@ class AccountMonitor:
 
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
                         created = create_message(dialog_id, sender, text, date_iso,
-                                                 media_file=media_file, media_type=media_type,
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
-                        if created:
+                        if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
+                            undelivered = get_undelivered_messages_for_account(self.phone)
+                            if undelivered:
+                                print(f"[{self.phone}] найдено {len(undelivered)} недоставленных, ищем нужное подставляем медиа")
+                            for msg in undelivered:
+                                if msg['dialog'] == dialog_id:
+                                    if msg['text'] == text and msg['sender'] == sender and msg['delivered'] == False:
+                                        mark_delivered(msg,created['id'])
+                                        break
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
