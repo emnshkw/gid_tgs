@@ -111,5 +111,4 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
             # # msg.media = message.media
             # msg.save()
         message.delete()
-        serializer = MessageSerializer(message)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response('success', status=status.HTTP_200_OK)
