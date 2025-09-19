@@ -238,7 +238,7 @@ class AccountMonitor:
                                                                    caption=msg['text'] or "")
                                 else:
                                     # Несколько файлов → альбом
-                                    media_group = []
+                                    # media_group = []
                                     tmp_files = []
                                     photos = []
                                     videos = []
