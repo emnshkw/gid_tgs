@@ -117,7 +117,11 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     }
     files = []
     for m in media:
+        path = m.get("file_path")
+        if not path or not os.path.exists(path):
+            continue  # п
         f = open(m["file_path"], "rb")
+
         files.append(("files", (os.path.basename(m["file_path"]), f)))
     try:
         try:
