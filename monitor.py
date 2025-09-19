@@ -423,6 +423,7 @@ async def run_loop():
     monitors = [AccountMonitor(phone) for phone in ACCOUNTS]
     # старт всех клиентов
     for m in monitors:
+        print(m.phone)
         try:
             await m.start()
         except Exception as e:
