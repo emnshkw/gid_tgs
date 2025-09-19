@@ -4,6 +4,7 @@ from datetime import datetime
 import requests
 from pyrogram import Client
 from pyrogram.errors import FloodWait
+from pyrogram.types import InputMediaDocument, InputMediaVideo, InputMediaPhoto
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
@@ -150,6 +151,18 @@ class AccountMonitor:
         self.account_user_id = me.id
         print(f"[{self.phone}] client started as {me.first_name} ({self.account_user_id})")
 
+    def get_input_media(self,file_path, caption=None):
+        """Определяем тип медиа по расширению"""
+        ext = file_path.lower().split(".")[-1]
+        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+            return InputMediaPhoto(file_path, caption=caption)
+        elif ext in ["mp4", "mov", "avi", "mkv"]:
+            return InputMediaVideo(file_path, caption=caption)
+        else:
+            return InputMediaDocument(file_path, caption=caption)
+
+
+
     async def stop(self):
         try:
             await self.client.stop()
@@ -191,26 +204,33 @@ class AccountMonitor:
                                 print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
                                 continue
 
-                            # Полный путь к файлу, если задан
-                            if msg.get("media_file") and msg.get("media_type"):
-                                mt = msg["media_type"]
-                                # media_file хранится как относительный путь от BASE_DIR
-                                mf = os.path.join(BASE_DIR, msg["media_file"])
-                                if mt == "photo":
-                                    await self.client.send_photo(chat_id, mf, caption=msg.get("text") or None)
-                                elif mt == "video":
-                                    await self.client.send_video(chat_id, mf, caption=msg.get("text") or None)
-                                elif mt == "voice":
-                                    await self.client.send_voice(chat_id, mf)
-                                elif mt == "video_note":
-                                    await self.client.send_video_note(chat_id, mf)
-                                elif mt == "document":
-                                    await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
+                            if msg['media'].exists():
+                                media_files = list(msg['media'])
+
+                                if len(media_files) == 1:
+                                    # Один файл → отправляем как фото/видео/документ
+                                    mf = media_files[0]
+                                    media = self.get_input_media(mf.file.path, caption=msg.text or "")
+                                    if isinstance(media, InputMediaPhoto):
+                                        await self.client.send_photo(chat_id, mf.file.path,
+                                                                caption=msg.text or "")
+                                    elif isinstance(media, InputMediaVideo):
+                                        await self.client.send_video(dialog.telegram_id, mf.file.path,
+                                                                caption=msg.text or "")
+                                    else:
+                                        await self.client.send_document(dialog.telegram_id, mf.file.path,
+                                                                   caption=msg.text or "")
                                 else:
-                                    # fallback: отправим как документ
-                                    await self.client.send_document(chat_id, mf, caption=msg.get("text") or None)
+                                    # Несколько файлов → альбом
+                                    media_group = []
+                                    for i, mf in enumerate(media_files):
+                                        caption = msg.text if i == 0 else None
+                                        media_group.append(self.get_input_media(mf.file.path, caption=caption))
+                                    await self.client.send_media_group(dialog.telegram_id, media_group)
+
                             else:
-                                await self.client.send_message(chat_id, msg.get("text") or "")
+                                # Только текст
+                                await self.client.send_message(dialog.telegram_id, msg.text or "")
 
                             # Помечаем как доставленное
                             mark_delivered(msg["id"], None)
