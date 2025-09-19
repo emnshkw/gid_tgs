@@ -116,18 +116,22 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         "telegram_id": telegram_id
     }
     files_to_send = []
-    # for m in media:
-    #     f
+    for m in media:
+        path = m.get("file_path")
+        if not path or not os.path.exists(path):
+            continue
+        f = open(path, "rb")
+        files_to_send.append(("files", (os.path.basename(path), f)))
     try:
         try:
             url = f'{API_BASE}/messages_media/'
-            r = requests.post(url, data=payload, files=media)
+            r = requests.post(url, data=payload, files=files_to_send)
             if r.status_code not in (200, 201):
                 print("Ошибка создания сообщения:", r.text)
             else:
                 print("Сообщение с медиа добавлено в Django")
         finally:
-            for _, (_, f) in media:
+            for _, (_, f) in files_to_send:
                 f.close()
 
         if r.status_code in (200, 201):
@@ -384,7 +388,7 @@ class AccountMonitor:
                         for f in files:
                             print(f"Файл: {f['file_path']}, тип: {f['media_type']}")
 
-                            files_to_up.append(open(f['file_path'], 'rb'))
+                            files_to_up.append({"file_path":f['file_path'],'media_type':f['media_type']})
 
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
                         created = create_message(dialog_id, sender, text, date_iso,
