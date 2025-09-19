@@ -96,8 +96,8 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         message = self.get_object()
         if request.data.get('created') is not None:
             msg = Message.objects.get(id=request.data.get('created')['id'])
-            for media in list(set(message.media)):
-                if media not in list(msg.media):
+            for media in message.media.all():
+                if media not in msg.media.all():
                     msg.media.add(media)
             # msg.media = message.media
             msg.save()
