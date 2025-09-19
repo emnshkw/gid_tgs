@@ -22,8 +22,9 @@ with open(API_FILE, encoding="utf-8") as f:
     API_HASH = f.readline().strip()
 
 # --- Номера аккаунтов (в accounts.txt номера начинаются с '+') ---
-with open(ACCOUNTS_FILE, encoding="utf-8") as f:
-    ACCOUNTS = [line.strip() for line in f if line.strip()]
+ACCOUNTS = []
+for session_file in os.listdir('sessions'):
+    ACCOUNTS.append(session_file.split('.')[0])
 
 # --- Вспомогательные API-функции (Django REST) ---
 def find_dialog(account_phone, chat_id):
