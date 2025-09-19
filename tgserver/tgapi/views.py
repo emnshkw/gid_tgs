@@ -96,7 +96,9 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
         message = self.get_object()
         if request.data.get('created') is not None:
             msg = Message.objects.get(id=request.data.get('created')['id'])
-            msg.media = message.media
+            for media in message.media.set():
+                msg.media.add(media)
+            # msg.media = message.media
             msg.save()
         message.delete()
         serializer = MessageSerializer(message)
