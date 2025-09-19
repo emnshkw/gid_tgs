@@ -269,7 +269,7 @@ class AccountMonitor:
                                         else:
                                             documents.append(self.get_input_media(tmp.name, caption=caption))
                                         # media_group.append(self.get_input_media(tmp.name, caption=caption))
-                                    print(media_group)
+                                    # print(media_group)
                                     for media_group in [photos,videos,documents]:
                                         await self.client.send_media_group(chat_id, media_group)
 
