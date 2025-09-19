@@ -211,6 +211,7 @@ class AccountMonitor:
                                     # Один файл → отправляем как фото/видео/документ
                                     mf = media_files[0]
                                     media = self.get_input_media(mf['file'], caption=msg['text'] or "")
+                                    print(f"http://5.129.253.254{mf['file']}")
                                     if isinstance(media, InputMediaPhoto):
                                         await self.client.send_photo(chat_id, f"http://5.129.253.254{mf['file']}",
                                                                 caption=msg['text'] or "")
