@@ -169,20 +169,29 @@ class AccountMonitor:
         media_list = []
         try:
             if msg.photo:
-                file_path = await self.client.download_media(msg, file_name=None)
-                media_list.append({"file_path": file_path, "media_type": "photo"})
+                suffix = ".jpg"
             elif msg.video:
-                file_path = await self.client.download_media(msg, file_name=None)
-                media_list.append({"file_path": file_path, "media_type": "video"})
+                suffix = ".mp4"
             elif msg.voice:
-                file_path = await self.client.download_media(msg, file_name=None)
-                media_list.append({"file_path": file_path, "media_type": "voice"})
+                suffix = ".ogg"
             elif msg.video_note:
-                file_path = await self.client.download_media(msg, file_name=None)
-                media_list.append({"file_path": file_path, "media_type": "video_note"})
+                suffix = ".mp4"
             elif msg.document:
-                file_path = await self.client.download_media(msg, file_name=None)
-                media_list.append({"file_path": file_path, "media_type": "document"})
+                suffix = os.path.splitext(msg.document.file_name or "")[1] or ".dat"
+            else:
+                return media_list  # нет медиа
+
+            # временный файл
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
+                file_path = await self.client.download_media(msg, file_name=tf.name)
+                media_type = (
+                    "photo" if msg.photo else
+                    "video" if msg.video else
+                    "voice" if msg.voice else
+                    "video_note" if msg.video_note else
+                    "document"
+                )
+                media_list.append({"file_path": file_path, "media_type": media_type})
         except Exception as e:
             print(f"Ошибка скачивания медиа для msg {msg.id}: {e}")
         return media_list
