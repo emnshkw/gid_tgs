@@ -97,10 +97,7 @@ def create_message(dialog_id, sender_name, text, date_iso,
             rchk = requests.get(q)
             rchk.raise_for_status()
             if rchk.json():
-                if text == 'пидор':
-                    print(q)
-                    print(rchk.json())
-                # Уже есть сообщение с таким telegram_id в этом диалоге
+
                 return False
     except Exception:
         # если проверка упала — продолжим попытку создания (без стопа)
@@ -117,7 +114,7 @@ def create_message(dialog_id, sender_name, text, date_iso,
         "telegram_id": telegram_id
     }
     try:
-        r = requests.post(f"{API_BASE}/messages/", json=payload)
+        r = requests.post(f"{API_BASE}/messages_media/", data=payload)
         if text == 'пидор':
             try:
                 print(r.json())
@@ -250,7 +247,8 @@ class AccountMonitor:
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
                         if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
-                        print(created)
+                        else:
+                            print("Не создалось, так как - ")
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
