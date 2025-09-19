@@ -99,7 +99,7 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
             msg = Message.objects.get(id=request.data.get('created')['id'])
             if old_media:
                 msg.media.add(*old_media)
-
+            print("Перенесли медиа")
             # сохраняем
             msg.save()
 
@@ -111,4 +111,5 @@ class MessageUpdateDeliveredView(generics.UpdateAPIView):
             # # msg.media = message.media
             # msg.save()
         message.delete()
+        print("Удалили сообщение")
         return Response('success', status=status.HTTP_200_OK)
