@@ -210,22 +210,22 @@ class AccountMonitor:
                                 if len(media_files) == 1:
                                     # Один файл → отправляем как фото/видео/документ
                                     mf = media_files[0]
-                                    media = self.get_input_media(mf.file.path, caption=msg.text or "")
+                                    media = self.get_input_media(mf['file'], caption=msg.text or "")
                                     if isinstance(media, InputMediaPhoto):
-                                        await self.client.send_photo(chat_id, mf.file.path,
+                                        await self.client.send_photo(chat_id, mf['file'],
                                                                 caption=msg.text or "")
                                     elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(dialog.telegram_id, mf.file.path,
+                                        await self.client.send_video(dialog.telegram_id, mf['file'],
                                                                 caption=msg.text or "")
                                     else:
-                                        await self.client.send_document(dialog.telegram_id, mf.file.path,
+                                        await self.client.send_document(dialog.telegram_id, mf['file'],
                                                                    caption=msg.text or "")
                                 else:
                                     # Несколько файлов → альбом
                                     media_group = []
                                     for i, mf in enumerate(media_files):
                                         caption = msg.text if i == 0 else None
-                                        media_group.append(self.get_input_media(mf.file.path, caption=caption))
+                                        media_group.append(self.get_input_media(mf['file'], caption=caption))
                                     await self.client.send_media_group(dialog.telegram_id, media_group)
 
                             else:
