@@ -124,7 +124,7 @@ def create_message(dialog_id, sender_name, text, date_iso,
             except:
                 pass
         if r.status_code in (200, 201):
-            return True
+            return r.json()
         else:
             print("create_message failed:", r.status_code, r.text)
             return False
@@ -132,9 +132,9 @@ def create_message(dialog_id, sender_name, text, date_iso,
         print("create_message error:", e)
         return False
 
-def mark_delivered(message_id):
+def mark_delivered(message_id,created):
     try:
-        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True})
+        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created':created})
         print(f"Marked delivered: {message_id}")
     except Exception as e:
         print("mark_delivered error:", e)
@@ -248,7 +248,7 @@ class AccountMonitor:
                         created = create_message(dialog_id, sender, text, date_iso,
                                                  media_file=media_file, media_type=media_type,
                                                  delivered=True, telegram_id=getattr(msg, "id", None))
-                        if created:
+                        if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
@@ -299,7 +299,7 @@ class AccountMonitor:
                         await self.client.send_message(chat_id, msg.get("text") or "")
 
                     # Помечаем как доставленное
-                    mark_delivered(msg["id"])
+                    mark_delivered(msg["id"],created)
                     print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
