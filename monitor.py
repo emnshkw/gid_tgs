@@ -271,11 +271,12 @@ class AccountMonitor:
 
                                         # media_group.append(self.get_input_media(tmp.name, caption=caption))
                                     # print(media_group)
-                                    for media_group in [photos,videos,documents]:
-                                        print(f'{media_group} - {len(media_group)}')
+                                    for media_group in [photos,videos]:
+                                        # print(f'{media_group} - {len(media_group)}')
                                         if len(media_group) != 0:
                                             await self.client.send_media_group(chat_id, media_group)
-
+                                    for doc in documents:
+                                        await self.client.send_document(chat_id,doc)
                             else:
                                 # Только текст
                                 await self.client.send_message(chat_id, msg['text'] or "")
