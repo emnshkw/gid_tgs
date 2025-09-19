@@ -258,7 +258,7 @@ class AccountMonitor:
                                                 tmp.write(chunk)
                                             tmp.close()
                                             tmp_files.append(tmp.name)
-                                        media_group.append(self.get_input_media(tmp.name, caption=caption))
+                                        media_group.append(self.get_input_media(tmp.path, caption=caption))
                                     await self.client.send_media_group(chat_id, media_group)
 
                             else:
