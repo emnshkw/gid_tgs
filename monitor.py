@@ -120,7 +120,16 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         f = open(m["file_path"], "rb")
         files.append(("files", (os.path.basename(m["file_path"]), f)))
     try:
-        r = requests.post(f"{API_BASE}/messages_media/", data=payload,files=files)
+        try:
+            url = f'{API_BASE}/messages_media/'
+            r = requests.post(url, data=payload, files=files)
+            if r.status_code not in (200, 201):
+                print("Ошибка создания сообщения:", r.text)
+            else:
+                print("Сообщение с медиа добавлено в Django")
+        finally:
+            for _, (name, f) in files:
+                f.close()
         if r.status_code in (200, 201):
             return r.json()
         else:
