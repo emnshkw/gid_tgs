@@ -300,10 +300,9 @@ class AccountMonitor:
 
                     # Помечаем как доставленное
                     try:
-                        print(created)
                         mark_delivered(msg["id"],created)
                     except:
-                        pass
+                        print(f"Не смогли отметить прочитанным, created - {created}")
                     print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
