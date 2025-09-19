@@ -86,7 +86,7 @@ def get_undelivered_messages_for_account(account_phone):
         print("get_undelivered_messages_for_account error:", e)
         return []
 
-def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None,files_to_up=None):
+def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None,media=None):
     """
     Создаём сообщение через API.
     Если передан telegram_id — проверяем уникальность (dialog + telegram_id).
@@ -116,8 +116,8 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         "telegram_id": telegram_id
     }
     files = []
-    if files_to_up:
-        for f in files_to_up:
+    if media:
+        for f in media:
             files.append(f)
     try:
         r = requests.post(f"{API_BASE}/messages/", json=payload,files=files)
