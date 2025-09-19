@@ -299,7 +299,10 @@ class AccountMonitor:
                         await self.client.send_message(chat_id, msg.get("text") or "")
 
                     # Помечаем как доставленное
-                    mark_delivered(msg["id"],created)
+                    try:
+                        mark_delivered(msg["id"],created)
+                    except:
+                        pass
                     print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
                 except FloodWait as e:
                     wait = int(e.value) + 1
