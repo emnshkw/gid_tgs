@@ -86,7 +86,7 @@ def get_undelivered_messages_for_account(account_phone):
         print("get_undelivered_messages_for_account error:", e)
         return []
 
-def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None):
+def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None,files_to_up=None):
     """
     Создаём сообщение через API.
     Если передан telegram_id — проверяем уникальность (dialog + telegram_id).
@@ -115,8 +115,12 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
         "delivered": delivered,
         "telegram_id": telegram_id
     }
+    files = []
+    if files_to_up:
+        for f in files_to_up:
+            files.append(f)
     try:
-        r = requests.post(f"{API_BASE}/messages/", json=payload)
+        r = requests.post(f"{API_BASE}/messages/", json=payload,files=files)
         if r.status_code in (200, 201):
             return r.json()
         else:
@@ -367,12 +371,15 @@ class AccountMonitor:
                         text = getattr(msg, "text", "") or ""
 
                         files = await self.get_media_files(msg)
+                        files_to_up = []
                         for f in files:
                             print(f"Файл: {f['file_path']}, тип: {f['media_type']}")
 
+                            files_to_up.append(open(f['file_path'], 'rb'))
+
                         # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
                         created = create_message(dialog_id, sender, text, date_iso,
-                                                 delivered=True, telegram_id=getattr(msg, "id", None))
+                                                 delivered=True, telegram_id=getattr(msg, "id", None),media=files_to_up)
                         if created != False:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
                             # undelivered = get_undelivered_messages_for_account(self.phone)
