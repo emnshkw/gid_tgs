@@ -163,6 +163,7 @@ class AccountMonitor:
         self.account_user_id = None
 
     def create_dialog(self, account_phone, chat_id, chat_title, chat):
+        """Создаёт диалог через API, если его ещё нет."""
         existing = find_dialog(account_phone, chat_id)
         if existing:
             return existing["id"]
@@ -173,37 +174,44 @@ class AccountMonitor:
             "chat_title": chat_title
         }
 
-        big_file_id = getattr(getattr(chat, "photo", None), "big_file_id", None)
-        r = None
+        try:
+            # --- Обрабатываем аватарку ---
+            files = None
+            if has_avatar(chat):
+                # создаём временный файл
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+                    tmp_path = tmp_file.name
 
-        if big_file_id:
-            import mimetypes
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-            tmp_path = tmp_file.name
-            tmp_file.close()
+                # скачиваем аватарку
+                self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
 
-            self.client.download_media(big_file_id, file_name=tmp_path)
+                # проверяем, что файл реально скачался
+                if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+                    print(f"Аватар {chat.id} пустой, пропускаем")
+                    os.remove(tmp_path)
+                else:
+                    # открываем файл и передаём в requests
+                    f = open(tmp_path, "rb")
+                    files = {"avatar": (os.path.basename(tmp_path), f, "image/jpeg")}
 
-            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
-                mime_type, _ = mimetypes.guess_type(tmp_path)
-                mime_type = mime_type or "image/jpeg"
+            # --- Отправка запроса на создание диалога ---
+            r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
 
-                with open(tmp_path, "rb") as f:
-                    files = {"avatar": (os.path.basename(tmp_path), f, mime_type)}
-                    r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+            # закрываем временный файл
+            if files:
+                f.close()
+                os.remove(tmp_path)
 
-            os.remove(tmp_path)
+            # проверяем результат
+            if r.status_code in (200, 201):
+                dlg_id = r.json().get("id")
+                print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {dlg_id}")
+                return dlg_id
+            else:
+                print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
 
-        # Если аватарки нет или отправка не удалась
-        if not r or r.status_code not in (200, 201):
-            r = requests.post(f"{API_BASE}/dialogs/", data=payload)
-
-        if r.status_code in (200, 201):
-            dialog_id = r.json().get("id")
-            print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {dialog_id}")
-            return dialog_id
-        else:
-            print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
+        except Exception as e:
+            print("create_dialog error:", e)
 
         return None
 
