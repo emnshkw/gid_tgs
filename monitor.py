@@ -176,36 +176,26 @@ class AccountMonitor:
             }
 
             files = None
-            tmp_path = None
 
-            try:
-                # Проверяем наличие аватара
-                if chat.photo:
-                    file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
-                    if file_id:
-                        # Создаём временный файл
-                        tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                        tmp_path = tmp_file.name
-                        tmp_file.close()
+            if chat.photo:
+                file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
+                if file_id:
+                    # Путь для сохранения аватара
+                    os.makedirs(MEDIA_DIR, exist_ok=True)
+                    avatar_path = os.path.join(MEDIA_DIR, f"{chat_id}.jpg")
 
-                        # Скачиваем аватарку
-                        self.client.download_media(file_id, file_name=tmp_path)
+                    # Скачиваем аватар прямо в папку media
+                    self.client.download_media(file_id, file_name=avatar_path)
 
-                        # Проверяем, что файл реально существует и не пустой
-                        if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
-                            files = {"avatar": open(tmp_path, "rb")}
-                        else:
-                            print(f"Аватар chat {chat.id} пустой, пропускаем")
+                    if os.path.exists(avatar_path) and os.path.getsize(avatar_path) > 0:
+                        files = {"avatar": open(avatar_path, "rb")}
+                    else:
+                        print(f"Аватар chat {chat.id} пустой, пропускаем")
 
-            except Exception as e:
-                print(f"Ошибка скачивания аватара: {e}")
-
-            # Отправляем запрос на создание диалога
+            # Отправка запроса на Django
             if files:
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
                 files["avatar"].close()
-                if tmp_path and os.path.exists(tmp_path):
-                    os.remove(tmp_path)
             else:
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload)
 
