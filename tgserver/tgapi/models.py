@@ -3,6 +3,7 @@ from django.db import models
 class Dialog(models.Model):
     account_phone = models.CharField(max_length=50)
     chat_id = models.BigIntegerField()
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     chat_title = models.CharField(max_length=255)
 
     class Meta:

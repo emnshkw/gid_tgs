@@ -158,7 +158,32 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     except Exception as e:
         print("create_message error:", e)
         return False
+def upload_avatar(chat, app):
+    """Скачивает аватар собеседника и отправляет в Django"""
+    if not chat.photo:
+        return None
 
+    try:
+        # временный файл
+        tmpdir = tempfile.mkdtemp()
+        path = os.path.join(tmpdir, f"{chat.id}.jpg")
+
+        # скачиваем
+        app.download_media(chat.photo.big_file_id, file_name=path)
+
+        # отправляем на сервер
+        files = {"avatar": open(path, "rb")}
+        payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
+
+        r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+        if r.status_code in (200, 201):
+            print(f"✅ Аватар {chat.id} загружен")
+        else:
+            print(f"⚠️ Ошибка при загрузке аватара {chat.id}: {r.status_code} {r.text}")
+        return path
+    except Exception as e:
+        print(f"Ошибка загрузки аватара для {chat.id}: {e}")
+        return None
 def mark_delivered(message_id,new_id):
     try:
         requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created_id':new_id})
@@ -265,6 +290,7 @@ class AccountMonitor:
             # Проходим по диалогам (limit ограничивает количество)
             async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
+                upload_avatar(chat,self)
                 chat_id = chat.id
                 # Сформируем читабельное название чата
                 chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
