@@ -184,6 +184,7 @@ class AccountMonitor:
         await self.client.start()
         me = await self.client.get_me()
         self.account_user_id = me.id
+        print(me.photo)
         register_profile(self.phone, self.phone, f'Имя: {me.first_name} Тег: @{me.username}')
         print(f"[{self.phone}] client started as {me.first_name} ({self.account_user_id})")
 
