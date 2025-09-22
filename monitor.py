@@ -177,11 +177,18 @@ class AccountMonitor:
             # формируем payload и files
             try:
                 if chat.photo:
-                    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
-                        tmp_path = tmpfile.name
+                    tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                    tmp_path = tmp_file.name
+                    tmp_file.close()  # закрываем перед download_media
 
-                    # скачиваем аватар
-                        self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+                    # Скачиваем аватар
+                    self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+
+                    # Проверяем, что файл реально существует и не пустой
+                    if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+                        print(f"Аватар {chat.id} пустой")
+                        os.remove(tmp_path)
+                    else:
                         with open(tmp_path, "rb") as f:
                             files = {"avatar": f}
                             r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
