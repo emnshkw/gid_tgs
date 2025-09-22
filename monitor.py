@@ -189,7 +189,7 @@ class AccountMonitor:
                 tmp_path = tmpfile.name
 
             # скачиваем аватар
-            self.app.download_media(chat.photo.big_file_id, file_name=tmp_path)
+            self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
 
             # формируем payload и files
             payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
