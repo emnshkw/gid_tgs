@@ -184,7 +184,7 @@ class AccountMonitor:
         await self.client.start()
         me = await self.client.get_me()
         self.account_user_id = me.id
-        register_profile(self.phone, self.phone, f'{me.first_name} {me.username}')
+        register_profile(self.phone, self.phone, f'Имя: {me.first_name} Тег: @{me.username}')
         print(f"[{self.phone}] client started as {me.first_name} ({self.account_user_id})")
 
     def get_input_media(self,file_path, caption=None):
