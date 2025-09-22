@@ -158,29 +158,31 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     except Exception as e:
         print("create_message error:", e)
         return False
-def upload_avatar(chat, app):
-    """Скачивает аватар собеседника и отправляет в Django"""
+def upload_avatar(self, chat):
     if not chat.photo:
         return None
-
     try:
-        # временный файл
-        tmpdir = tempfile.mkdtemp()
-        path = os.path.join(tmpdir, f"{chat.id}.jpg")
+        # создаём временный файл с суффиксом .jpg
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
+            tmp_path = tmpfile.name
 
-        # скачиваем
-        app.download_media(chat.photo.big_file_id, file_name=path)
+        # скачиваем аватар
+        self.app.download_media(chat.photo.big_file_id, file_name=tmp_path)
 
-        # отправляем на сервер
-        files = {"avatar": open(path, "rb")}
+        # формируем payload и files
         payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
+        with open(tmp_path, "rb") as f:
+            files = {"avatar": f}
+            r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
 
-        r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
         if r.status_code in (200, 201):
             print(f"✅ Аватар {chat.id} загружен")
         else:
             print(f"⚠️ Ошибка при загрузке аватара {chat.id}: {r.status_code} {r.text}")
-        return path
+
+        os.remove(tmp_path)
+        return tmp_path
+
     except Exception as e:
         print(f"Ошибка загрузки аватара для {chat.id}: {e}")
         return None
