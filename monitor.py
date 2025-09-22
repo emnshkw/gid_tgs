@@ -162,54 +162,53 @@ class AccountMonitor:
         self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
         self.account_user_id = None
 
-    def create_dialog(self,account_phone, chat_id, chat_title,chat):
+    def create_dialog(self, account_phone, chat_id, chat_title, chat):
         """Создаёт диалог через API, если его ещё нет."""
         existing = find_dialog(account_phone, chat_id)
         if existing:
             return existing["id"]
+
+        payload = {
+            "account_phone": account_phone,
+            "chat_id": str(chat_id),
+            "chat_title": chat_title
+        }
+
         try:
-            payload = {
-                "account_phone": account_phone,
-                "chat_id": str(chat_id),
-                "chat_title": chat_title
-            }
+            r = None
+            # --- аватарка ---
+            avatar_sent = False
+            big_file_id = getattr(chat.photo, "big_file_id", None) if chat.photo else None
+            if big_file_id:
+                tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                tmp_path = tmp_file.name
+                tmp_file.close()
 
-            files = {}
-            # формируем payload и files
-            try:
-                if has_avatar(chat):
-                    tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                    tmp_path = tmp_file.name
-                    tmp_file.close()
+                self.client.download_media(big_file_id, file_name=tmp_path)
 
-                    # Скачиваем аватар
-                    self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
-
-
-                    if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
-                        print(f"Аватар {chat.id} пустой, пропускаем")
-                        os.remove(tmp_path)
-                        raise Exception('No photo in chat')
-
-
+                if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
                     with open(tmp_path, "rb") as f:
                         files = {"avatar": f}
                         r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
-                        print("ДОБАВИЛИ ДИАЛОГ С АВОЙ")
-                else:
+                        avatar_sent = True
+                os.remove(tmp_path)
 
-                    raise Exception('No photo in chat')
-            except Exception as e:
-                print(f"Error while load avatar {e}")
+            # --- если аватарки нет или не удалось отправить ---
+            if not avatar_sent:
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload)
+
+            # --- проверка ответа ---
             if r.status_code in (200, 201):
-                print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {r.json().get('id')}")
-                return r.json().get("id")
+                dialog_id = r.json().get("id")
+                print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {dialog_id}")
+                return dialog_id
             else:
                 print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
         except Exception as e:
             print("create_dialog error:", e)
+
         return None
+
     def upload_avatar(self, chat):
         if not chat.photo:
             return None
