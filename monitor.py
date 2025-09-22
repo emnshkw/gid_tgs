@@ -25,7 +25,28 @@ with open(API_FILE, encoding="utf-8") as f:
 ACCOUNTS = []
 for session_file in os.listdir('sessions'):
     ACCOUNTS.append(session_file.split('.')[0])
+def download_chat_avatar(client, chat):
+    """Скачивает аватар чата прямо в media/dialog_avatars и возвращает путь к файлу или None"""
+    if not getattr(chat, "photo", None):
+        return None
 
+    file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
+    if not file_id:
+        return None
+
+    MEDIA_DIR = "/path/to/django/media/dialog_avatars"
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    avatar_path = os.path.join(MEDIA_DIR, f"{chat.id}.jpg")
+
+    try:
+        client.download_media(file_id, file_name=avatar_path)
+        if os.path.exists(avatar_path) and os.path.getsize(avatar_path) > 0:
+            return avatar_path
+        else:
+            return None
+    except Exception as e:
+        print(f"Ошибка скачивания аватара для chat {chat.id}: {e}")
+        return None
 # --- Вспомогательные API-функции (Django REST) ---
 def find_dialog(account_phone, chat_id):
     """Ищем существующий диалог в Django по номеру аккаунта и chat_id."""
@@ -163,36 +184,20 @@ class AccountMonitor:
         self.account_user_id = None
 
     def create_dialog(self, account_phone, chat_id, chat_title, chat):
-        """Создаёт диалог через API, если его ещё нет."""
         existing = find_dialog(account_phone, chat_id)
         if existing:
             return existing["id"]
 
+        payload = {
+            "account_phone": account_phone,
+            "chat_id": str(chat_id),
+            "chat_title": chat_title
+        }
+
+        avatar_path = download_chat_avatar(self.client, chat)
+        files = {"avatar": open(avatar_path, "rb")} if avatar_path else None
+
         try:
-            payload = {
-                "account_phone": account_phone,
-                "chat_id": str(chat_id),
-                "chat_title": chat_title
-            }
-
-            files = None
-
-            if chat.photo:
-                file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
-                if file_id:
-                    # Путь для сохранения аватара
-                    os.makedirs(MEDIA_DIR, exist_ok=True)
-                    avatar_path = os.path.join(MEDIA_DIR, f"{chat_id}.jpg")
-
-                    # Скачиваем аватар прямо в папку media
-                    self.client.download_media(file_id, file_name=avatar_path)
-
-                    if os.path.exists(avatar_path) and os.path.getsize(avatar_path) > 0:
-                        files = {"avatar": open(avatar_path, "rb")}
-                    else:
-                        print(f"Аватар chat {chat.id} пустой, пропускаем")
-
-            # Отправка запроса на Django
             if files:
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
                 files["avatar"].close()
@@ -201,10 +206,10 @@ class AccountMonitor:
 
             if r.status_code in (200, 201):
                 dlg_id = r.json().get("id")
-                print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {dlg_id}")
+                print(f"Создан диалог {chat_title} ({chat_id}) -> id {dlg_id}")
                 return dlg_id
             else:
-                print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
+                print(f"Ошибка create_dialog: {r.status_code} {r.text}")
 
         except Exception as e:
             print("create_dialog error:", e)
