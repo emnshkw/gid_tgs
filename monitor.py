@@ -139,7 +139,8 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     except Exception as e:
         print("create_message error:", e)
         return False
-
+def has_avatar(chat):
+    return chat.photo is not None and getattr(chat.photo, "big_file_id", None)
 def mark_delivered(message_id,new_id):
     try:
         requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created_id':new_id})
@@ -176,23 +177,23 @@ class AccountMonitor:
             files = {}
             # формируем payload и files
             try:
-                if chat.photo:
+                if has_avatar(chat):
                     tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
                     tmp_path = tmp_file.name
-                    tmp_file.close()  # закрываем перед download_media
+                    tmp_file.close()
 
                     # Скачиваем аватар
                     self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
 
-                    # Проверяем, что файл реально существует и не пустой
                     if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
-                        print(f"Аватар {chat.id} пустой")
+                        print(f"Аватар {chat.id} пустой, пропускаем")
                         os.remove(tmp_path)
-                        raise Exception('No photo in chat')
-                    else:
-                        with open(tmp_path, "rb") as f:
-                            files = {"avatar": f}
-                            r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+                        return None
+
+                    payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
+                    with open(tmp_path, "rb") as f:
+                        files = {"avatar": f}
+                        r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
                 else:
                     raise Exception('No photo in chat')
             except Exception as e:
