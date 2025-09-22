@@ -1,9 +1,20 @@
 from django.db import models
-
+class Media(models.Model):
+    file = models.FileField(upload_to="media/")
+    media_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("photo", "Фото"),
+            ("video", "Видео"),
+            ("voice", "Голос"),
+            ("document", "Документ"),
+        ],
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 class Dialog(models.Model):
     account_phone = models.CharField(max_length=50)
     chat_id = models.BigIntegerField()
-    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    avatar = models.ForeignKey(Media, null=True, blank=True, on_delete=models.SET_NULL)
     chat_title = models.CharField(max_length=255)
 
     class Meta:
@@ -48,15 +59,3 @@ class Profile(models.Model):
     class Meta:
         verbose_name = 'ТГ Аккаунт'
         verbose_name_plural = 'ТГ Аккаунты'
-class Media(models.Model):
-    file = models.FileField(upload_to="media/")
-    media_type = models.CharField(
-        max_length=20,
-        choices=[
-            ("photo", "Фото"),
-            ("video", "Видео"),
-            ("voice", "Голос"),
-            ("document", "Документ"),
-        ],
-    )
-    uploaded_at = models.DateTimeField(auto_now_add=True)

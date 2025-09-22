@@ -16,9 +16,27 @@ class DialogListCreateView(generics.ListCreateAPIView):
     queryset = Dialog.objects.all()
     serializer_class = DialogSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = (MultiPartParser, FormParser)
     filterset_fields = ['account_phone', 'chat_id']
     ordering_fields = ['chat_id']
+
+    def create(self, request, *args, **kwargs):
+        # Обрабатываем avatar как media
+        avatar_file = request.FILES.get("avatar")
+        avatar_instance = None
+        if avatar_file:
+            avatar_instance = Media.objects.create(file=avatar_file, media_type='photo')
+
+        dialog = Dialog.objects.create(
+            account_phone=request.data.get("account_phone"),
+            chat_id=request.data.get("chat_id"),
+            chat_title=request.data.get("chat_title"),
+            avatar=avatar_instance
+        )
+        serializer = self.get_serializer(dialog)
+        return Response(serializer.data)
+
+
 
 
 class MessageListCreateView(generics.ListCreateAPIView):

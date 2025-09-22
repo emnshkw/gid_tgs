@@ -39,7 +39,7 @@ class DialogSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
-
+    avatar = MediaSerializer(read_only=True)
     class Meta:
         model = Dialog
         fields = '__all__'
