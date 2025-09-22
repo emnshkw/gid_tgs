@@ -185,6 +185,7 @@ class AccountMonitor:
                     # Скачиваем аватар
                     self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
 
+
                     if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
                         print(f"Аватар {chat.id} пустой, пропускаем")
                         os.remove(tmp_path)
@@ -194,7 +195,9 @@ class AccountMonitor:
                     with open(tmp_path, "rb") as f:
                         files = {"avatar": f}
                         r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+                        print("ДОБАВИЛИ ДИАЛОГ С АВОЙ")
                 else:
+
                     raise Exception('No photo in chat')
             except Exception as e:
                 print(f"Error while load avatar {e}")
