@@ -176,14 +176,17 @@ class AccountMonitor:
             files = {}
             # формируем payload и files
             try:
-                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
-                    tmp_path = tmpfile.name
+                if chat.photo:
+                    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
+                        tmp_path = tmpfile.name
 
-                # скачиваем аватар
-                    self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
-                    with open(tmp_path, "rb") as f:
-                        files = {"avatar": f}
-                        r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+                    # скачиваем аватар
+                        self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+                        with open(tmp_path, "rb") as f:
+                            files = {"avatar": f}
+                            r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+                else:
+                    raise Exception('No photo in chat')
             except Exception as e:
                 print(f"Error while load avatar {e}")
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload)
