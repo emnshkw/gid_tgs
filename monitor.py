@@ -172,16 +172,20 @@ class AccountMonitor:
                 "chat_id": str(chat_id),
                 "chat_title": chat_title
             }
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
-                tmp_path = tmpfile.name
 
-            # скачиваем аватар
-            self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
-
+            files = {}
             # формируем payload и files
-            with open(tmp_path, "rb") as f:
-                files = {"avatar": f}
-            r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
+                    tmp_path = tmpfile.name
+
+                # скачиваем аватар
+                    self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+                    with open(tmp_path, "rb") as f:
+                        files = {"avatar": f}
+                r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+            except:
+                r = requests.post(f"{API_BASE}/dialogs/", data=payload)
             if r.status_code in (200, 201):
                 print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {r.json().get('id')}")
                 return r.json().get("id")
