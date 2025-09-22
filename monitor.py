@@ -290,7 +290,7 @@ class AccountMonitor:
             # Проходим по диалогам (limit ограничивает количество)
             async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
-                upload_avatar(chat,self)
+                upload_avatar(chat,self.client)
                 chat_id = chat.id
                 # Сформируем читабельное название чата
                 chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
