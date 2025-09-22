@@ -43,15 +43,16 @@ def find_dialog(account_phone, chat_id):
     return None
 
 
-def register_profile(phone_number: str, session_name: str):
+def register_profile(phone_number: str, session_name: str, username: str = None):
     payload = {
         "phone_number": phone_number,
         "session_name": session_name,
+        "username": username,
     }
     try:
         r = requests.post(f"{API_BASE}/profiles/", json=payload)
         if r.status_code in (200, 201):
-            print(f"✅ Профиль {phone_number} зарегистрирован")
+            print(f"✅ Профиль {phone_number} ({username}) зарегистрирован")
         else:
             print(f"❌ Ошибка при регистрации профиля: {r.status_code} {r.text}")
     except Exception as e:
@@ -115,9 +116,7 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
             rchk = requests.get(q)
             rchk.raise_for_status()
             if rchk.json():
-                if text == 'пидор':
-                    print(q)
-                    print(rchk.json())
+
                 # Уже есть сообщение с таким telegram_id в этом диалоге
                 return False
     except Exception:
@@ -177,7 +176,7 @@ class AccountMonitor:
         self.phone = phone
         session_name = phone.replace("+", "")
         self.client = Client(session_name, api_id=API_ID, api_hash=API_HASH, workdir=SESSIONS_DIR)
-        register_profile(phone,session_name)
+
         self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
         self.account_user_id = None
 
@@ -185,6 +184,7 @@ class AccountMonitor:
         await self.client.start()
         me = await self.client.get_me()
         self.account_user_id = me.id
+        register_profile(self.phone, self.phone, f'{me.first_name} {me.username}')
         print(f"[{self.phone}] client started as {me.first_name} ({self.account_user_id})")
 
     def get_input_media(self,file_path, caption=None):
