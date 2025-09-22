@@ -23,7 +23,7 @@ class Dialog(models.Model):
         unique_together = ("account_phone", "chat_id")
 
     def __str__(self):
-        return f"{self.account_phone} - {self.chat_title}"
+        return f"{self.account_phone} - {self.chat_title}. {self.avatar}"
 
 
 class Message(models.Model):
