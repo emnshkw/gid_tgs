@@ -179,7 +179,7 @@ class AccountMonitor:
                 self.client.download_media(chat.photo.big_file_id, file_name='avatar.jpg')
                 with open('avatar.jpg', "rb") as f:
                     files = {"avatar": f}
-                r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+                    r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
             except Exception as e:
                 print(f"Error while load avatar {e}")
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload)
