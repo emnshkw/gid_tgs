@@ -190,7 +190,7 @@ class AccountMonitor:
                         os.remove(tmp_path)
                         raise Exception('No photo in chat')
 
-                    payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
+
                     with open(tmp_path, "rb") as f:
                         files = {"avatar": f}
                         r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
