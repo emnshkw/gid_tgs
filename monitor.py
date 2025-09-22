@@ -59,26 +59,7 @@ def register_profile(phone_number: str, session_name: str, username: str = None)
         print(f"⚠️ Ошибка подключения к серверу: {e}")
 
 
-def create_dialog(account_phone, chat_id, chat_title):
-    """Создаёт диалог через API, если его ещё нет."""
-    existing = find_dialog(account_phone, chat_id)
-    if existing:
-        return existing["id"]
-    try:
-        payload = {
-            "account_phone": account_phone,
-            "chat_id": str(chat_id),
-            "chat_title": chat_title
-        }
-        r = requests.post(f"{API_BASE}/dialogs/", json=payload)
-        if r.status_code in (200, 201):
-            print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {r.json().get('id')}")
-            return r.json().get("id")
-        else:
-            print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
-    except Exception as e:
-        print("create_dialog error:", e)
-    return None
+
 
 def get_undelivered_messages_for_account(account_phone):
     """
@@ -180,6 +161,35 @@ class AccountMonitor:
         self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
         self.account_user_id = None
 
+    def create_dialog(self,account_phone, chat_id, chat_title,chat):
+        """Создаёт диалог через API, если его ещё нет."""
+        existing = find_dialog(account_phone, chat_id)
+        if existing:
+            return existing["id"]
+        try:
+            payload = {
+                "account_phone": account_phone,
+                "chat_id": str(chat_id),
+                "chat_title": chat_title
+            }
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
+                tmp_path = tmpfile.name
+
+            # скачиваем аватар
+            self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+
+            # формируем payload и files
+            with open(tmp_path, "rb") as f:
+                files = {"avatar": f}
+            r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
+            if r.status_code in (200, 201):
+                print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {r.json().get('id')}")
+                return r.json().get("id")
+            else:
+                print(f"[{account_phone}] Ошибка create_dialog: {r.status_code} {r.text}")
+        except Exception as e:
+            print("create_dialog error:", e)
+        return None
     def upload_avatar(self, chat):
         if not chat.photo:
             return None
@@ -297,7 +307,7 @@ class AccountMonitor:
                 chat_id = chat.id
                 # Сформируем читабельное название чата
                 chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
-                dialog_id = create_dialog(self.phone, chat_id, chat_title)
+                dialog_id = self.create_dialog(self.phone, chat_id, chat_title,chat)
                 if not dialog_id:
                     continue
 

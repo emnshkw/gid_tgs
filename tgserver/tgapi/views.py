@@ -16,6 +16,7 @@ class DialogListCreateView(generics.ListCreateAPIView):
     queryset = Dialog.objects.all()
     serializer_class = DialogSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
+    parser_classes = [MultiPartParser, FormParser]
     filterset_fields = ['account_phone', 'chat_id']
     ordering_fields = ['chat_id']
 
