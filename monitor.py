@@ -188,7 +188,7 @@ class AccountMonitor:
                     if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
                         print(f"Аватар {chat.id} пустой, пропускаем")
                         os.remove(tmp_path)
-                        return None
+                        raise Exception('No photo in chat')
 
                     payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
                     with open(tmp_path, "rb") as f:
