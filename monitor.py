@@ -188,6 +188,7 @@ class AccountMonitor:
                     if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
                         print(f"Аватар {chat.id} пустой")
                         os.remove(tmp_path)
+                        raise Exception('No photo in chat')
                     else:
                         with open(tmp_path, "rb") as f:
                             files = {"avatar": f}
