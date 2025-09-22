@@ -184,7 +184,8 @@ class AccountMonitor:
                     with open(tmp_path, "rb") as f:
                         files = {"avatar": f}
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload,files=files)
-            except:
+            except Exception as e:
+                print(f"Error while load avatar {e}")
                 r = requests.post(f"{API_BASE}/dialogs/", data=payload)
             if r.status_code in (200, 201):
                 print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {r.json().get('id')}")
@@ -307,7 +308,7 @@ class AccountMonitor:
             # Проходим по диалогам (limit ограничивает количество)
             async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
-                self.upload_avatar(chat)
+                # self.upload_avatar(chat)
                 chat_id = chat.id
                 # Сформируем читабельное название чата
                 chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
