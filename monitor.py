@@ -158,34 +158,7 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
     except Exception as e:
         print("create_message error:", e)
         return False
-def upload_avatar(self, chat):
-    if not chat.photo:
-        return None
-    try:
-        # создаём временный файл с суффиксом .jpg
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
-            tmp_path = tmpfile.name
 
-        # скачиваем аватар
-        self.app.download_media(chat.photo.big_file_id, file_name=tmp_path)
-
-        # формируем payload и files
-        payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
-        with open(tmp_path, "rb") as f:
-            files = {"avatar": f}
-            r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
-
-        if r.status_code in (200, 201):
-            print(f"✅ Аватар {chat.id} загружен")
-        else:
-            print(f"⚠️ Ошибка при загрузке аватара {chat.id}: {r.status_code} {r.text}")
-
-        os.remove(tmp_path)
-        return tmp_path
-
-    except Exception as e:
-        print(f"Ошибка загрузки аватара для {chat.id}: {e}")
-        return None
 def mark_delivered(message_id,new_id):
     try:
         requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created_id':new_id})
@@ -207,6 +180,34 @@ class AccountMonitor:
         self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
         self.account_user_id = None
 
+    def upload_avatar(self, chat):
+        if not chat.photo:
+            return None
+        try:
+            # создаём временный файл с суффиксом .jpg
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
+                tmp_path = tmpfile.name
+
+            # скачиваем аватар
+            self.app.download_media(chat.photo.big_file_id, file_name=tmp_path)
+
+            # формируем payload и files
+            payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
+            with open(tmp_path, "rb") as f:
+                files = {"avatar": f}
+                r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+
+            if r.status_code in (200, 201):
+                print(f"✅ Аватар {chat.id} загружен")
+            else:
+                print(f"⚠️ Ошибка при загрузке аватара {chat.id}: {r.status_code} {r.text}")
+
+            os.remove(tmp_path)
+            return tmp_path
+
+        except Exception as e:
+            print(f"Ошибка загрузки аватара для {chat.id}: {e}")
+            return None
     async def start(self):
         await self.client.start()
         me = await self.client.get_me()
@@ -292,7 +293,7 @@ class AccountMonitor:
             # Проходим по диалогам (limit ограничивает количество)
             async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
-                upload_avatar(chat,self.client)
+                self.upload_avatar(chat)
                 chat_id = chat.id
                 # Сформируем читабельное название чата
                 chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
