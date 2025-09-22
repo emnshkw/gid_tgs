@@ -1,5 +1,13 @@
 from rest_framework import serializers
-from .models import Dialog, Message, Media
+from .models import Dialog, Message, Media, Profile
+
+
+class ProfileSelizalier(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = '__all__'
+
+
 class MediaSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
 

@@ -42,6 +42,22 @@ def find_dialog(account_phone, chat_id):
         print("find_dialog error:", e)
     return None
 
+
+def register_profile(phone_number: str, session_name: str):
+    payload = {
+        "phone_number": phone_number,
+        "session_name": session_name,
+    }
+    try:
+        r = requests.post(f"{API_BASE}/profiles/", json=payload)
+        if r.status_code in (200, 201):
+            print(f"✅ Профиль {phone_number} зарегистрирован")
+        else:
+            print(f"❌ Ошибка при регистрации профиля: {r.status_code} {r.text}")
+    except Exception as e:
+        print(f"⚠️ Ошибка подключения к серверу: {e}")
+
+
 def create_dialog(account_phone, chat_id, chat_title):
     """Создаёт диалог через API, если его ещё нет."""
     existing = find_dialog(account_phone, chat_id)
@@ -161,6 +177,7 @@ class AccountMonitor:
         self.phone = phone
         session_name = phone.replace("+", "")
         self.client = Client(session_name, api_id=API_ID, api_hash=API_HASH, workdir=SESSIONS_DIR)
+        register_profile(phone,session_name)
         self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
         self.account_user_id = None
 

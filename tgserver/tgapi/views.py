@@ -1,11 +1,16 @@
 from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from .models import Dialog, Message, Media
-from .serializers import DialogSerializer, MessageSerializer
+from .models import Dialog, Message, Media, Profile
+from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
+
+
+class ProfileViewSet(viewsets.ModelViewSet):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSelizalier
 
 class DialogListCreateView(generics.ListCreateAPIView):
     queryset = Dialog.objects.all()
