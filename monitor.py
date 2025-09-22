@@ -168,41 +168,47 @@ class AccountMonitor:
         if existing:
             return existing["id"]
 
-        payload = {
-            "account_phone": account_phone,
-            "chat_id": str(chat_id),
-            "chat_title": chat_title
-        }
-
         try:
-            # --- Обрабатываем аватарку ---
+            payload = {
+                "account_phone": account_phone,
+                "chat_id": str(chat_id),
+                "chat_title": chat_title
+            }
+
             files = None
-            if has_avatar(chat):
-                # создаём временный файл
-                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
-                    tmp_path = tmp_file.name
+            tmp_path = None
 
-                # скачиваем аватарку
-                self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
+            try:
+                # Проверяем наличие аватара
+                if chat.photo:
+                    file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
+                    if file_id:
+                        # Создаём временный файл
+                        tmp_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                        tmp_path = tmp_file.name
+                        tmp_file.close()
 
-                # проверяем, что файл реально скачался
-                if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
-                    print(f"Аватар {chat.id} пустой, пропускаем")
-                    os.remove(tmp_path)
-                else:
-                    # открываем файл и передаём в requests
-                    f = open(tmp_path, "rb")
-                    files = {"avatar": (os.path.basename(tmp_path), f, "image/jpeg")}
+                        # Скачиваем аватарку
+                        self.client.download_media(file_id, file_name=tmp_path)
 
-            # --- Отправка запроса на создание диалога ---
-            r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+                        # Проверяем, что файл реально существует и не пустой
+                        if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                            files = {"avatar": open(tmp_path, "rb")}
+                        else:
+                            print(f"Аватар chat {chat.id} пустой, пропускаем")
 
-            # закрываем временный файл
+            except Exception as e:
+                print(f"Ошибка скачивания аватара: {e}")
+
+            # Отправляем запрос на создание диалога
             if files:
-                f.close()
-                os.remove(tmp_path)
+                r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
+                files["avatar"].close()
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            else:
+                r = requests.post(f"{API_BASE}/dialogs/", data=payload)
 
-            # проверяем результат
             if r.status_code in (200, 201):
                 dlg_id = r.json().get("id")
                 print(f"[{account_phone}] Создан диалог {chat_title} ({chat_id}) -> id {dlg_id}")
