@@ -30,7 +30,7 @@ def flutter_redirect(request, resource):
 urlpatterns = [
     path('', lambda r: flutter_redirect(r, 'index.html')),
     path('admin/', admin.site.urls),
-    path('ya_account/',YaAccountAPIView.as_view())
+    path('ya_account/',YaAccountAPIView.as_view()),
     path('', include('tgapi.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
