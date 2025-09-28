@@ -34,6 +34,7 @@ class YaAccountAPIView(APIView):
         if added_cats is not None:
             cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n') if i != '']
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            new_cats = [] if new_cats is None else new_cats
             for added_cat in added_cats.split('\n'):
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
@@ -46,7 +47,9 @@ class YaAccountAPIView(APIView):
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None:
             cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
+            cur_cats = [] if cur_cats is None else cur_cats
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
+            del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
                 cur_cats = cur_cats.remove(deleted_cat)
                 del_cats = del_cats.remove(deleted_cat)
@@ -74,6 +77,7 @@ class YaAccountAPIView(APIView):
         added_cats = data.get('added_cats')
         if added_cats is not None:
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            new_cats = [] if new_cats is None else new_cats
             for added_cat in added_cats.split('\n'):
                 if added_cat not in new_cats:
                     new_cats.append(added_cat)
@@ -85,6 +89,7 @@ class YaAccountAPIView(APIView):
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None:
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
+            del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
                 del_cats = del_cats.append(deleted_cat)
             if del_cats is not None and len(del_cats) != 0:
