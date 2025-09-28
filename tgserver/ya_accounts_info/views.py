@@ -89,6 +89,7 @@ class YaAccountAPIView(APIView):
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None:
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != ''] if account.del_cats != '' else []
+            print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
             # del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
                 del_cats = del_cats.append(deleted_cat)
