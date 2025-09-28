@@ -21,7 +21,7 @@ class YaAccountAPIView(APIView):
         del_cats = data.get('del_cats')
         new_city = data.get('new_city')
         need_update = data.get('need_update')
-        new = YaAccountModel.objects.create(name=name,city=city,categories='\n'.join(list(set(categori))es),new_cats=new_cats,new_city=new_city,del_cats=del_cats,need_update=need_update)
+        new = YaAccountModel.objects.create(name=name,city=city,categories='\n'.join(categories),new_cats=new_cats,new_city=new_city,del_cats=del_cats,need_update=need_update)
         return Response({'status':'success','data':YaAccountSelizalier(new).data})
     def patch(self,request,*args,**kwargs):
         data = request.data
