@@ -10,6 +10,11 @@ class YaAccountAPIView(APIView):
     def post(self,request,*args,**kwargs):
         data = request.data
         name = data.get('name')
+        try:
+            account = YaAccountModel.objects.get(name=name)
+            return Response({'status':'success','data':YaAccountSelizalier(account).data})
+        except:
+            pass
         city = data.get('city')
         categories = data.get('categories')
         new_cats = data.get('new_cats')

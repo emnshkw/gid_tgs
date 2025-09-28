@@ -8,7 +8,7 @@ class YaAccountModel(models.Model):
     new_cats = models.TextField("Категории, которые нужно добавить",blank=True,null=True)
     del_cats = models.TextField("Категории, которые нужно удалить",blank=True,null=True)
     new_city = models.TextField('Новый город',blank=True,null=True)
-    need_update = models.BooleanField("Есть изменения, программе нужно отработать",default=False)
+    need_update = models.BooleanField("Есть изменения, программе нужно отработать",default=True)
 
 
     def __str__(self):
