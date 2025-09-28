@@ -39,7 +39,7 @@ class YaAccountAPIView(APIView):
                     cur_cats.append(added_cat)
                     new_cats.remove(added_cat)
             account.categories = '\n'.join(cur_cats)
-            if len(new_cats) != 0:
+            if new_cats is not None and len(new_cats) != 0:
                 account.new_cats = '\n'.join(new_cats)
             else:
                 account.new_cats = ''
@@ -51,7 +51,7 @@ class YaAccountAPIView(APIView):
                 cur_cats = cur_cats.remove(deleted_cat)
                 del_cats = del_cats.remove(deleted_cat)
             account.categories = '\n'.join(cur_cats)
-            if len(del_cats) != 0:
+            if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(del_cats)
             else:
                 account.del_cats = ''
@@ -77,7 +77,7 @@ class YaAccountAPIView(APIView):
             for added_cat in added_cats.split('\n'):
                 if added_cat not in new_cats:
                     new_cats.append(added_cat)
-            if len(new_cats) != 0:
+            if new_cats is not None and len(new_cats) != 0:
                 account.new_cats = '\n'.join(new_cats)
             else:
                 account.new_cats = ''
@@ -87,7 +87,7 @@ class YaAccountAPIView(APIView):
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
             for deleted_cat in deleted_cats.split('\n'):
                 del_cats = del_cats.append(deleted_cat)
-            if len(del_cats) != 0:
+            if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(del_cats)
             else:
                 account.del_cats = ''
