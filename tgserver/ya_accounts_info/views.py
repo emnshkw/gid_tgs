@@ -21,7 +21,7 @@ class YaAccountAPIView(APIView):
         del_cats = data.get('del_cats')
         new_city = data.get('new_city')
         need_update = data.get('need_update')
-        new = YaAccountModel.objects.create(name=name,city=city,categories='\n'.join(categories),new_cats=new_cats,new_city=new_city,del_cats=del_cats,need_update=need_update)
+        new = YaAccountModel.objects.create(name=name,city=city,categories='\n'.join(list(set(categori))es),new_cats=new_cats,new_city=new_city,del_cats=del_cats,need_update=need_update)
         return Response({'status':'success','data':YaAccountSelizalier(new).data})
     def patch(self,request,*args,**kwargs):
         data = request.data
@@ -39,9 +39,9 @@ class YaAccountAPIView(APIView):
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
                     new_cats.remove(added_cat)
-            account.categories = '\n'.join(cur_cats)
+            account.categories = '\n'.join(list(set(cur_cats)))
             if new_cats is not None and len(new_cats) != 0:
-                account.new_cats = '\n'.join(new_cats)
+                account.new_cats = '\n'.join(list(set(new_cats)))
             else:
                 account.new_cats = ''
         deleted_cats = data.get('deleted_cats')
@@ -53,9 +53,9 @@ class YaAccountAPIView(APIView):
             for deleted_cat in deleted_cats.split('\n'):
                 cur_cats.remove(deleted_cat)
                 del_cats.remove(deleted_cat)
-            account.categories = '\n'.join(cur_cats)
+            account.categories = '\n'.join(list(set(cur_cats)))
             if del_cats is not None and len(del_cats) != 0:
-                account.del_cats = '\n'.join(del_cats)
+                account.del_cats = '\n'.join(list(set(del_cats)))
             else:
                 account.del_cats = ''
         new_city = data.get('new_city')
@@ -86,11 +86,11 @@ class YaAccountAPIView(APIView):
                 if added_cat in del_cats:
                     del_cats.remove(added_cat)
             if del_cats is not None and len(del_cats) != 0:
-                account.del_cats = '\n'.join(del_cats)
+                account.del_cats = '\n'.join(list(set(del_cats)))
             else:
                 account.del_cats = ''
             if new_cats is not None and len(new_cats) != 0:
-                account.new_cats = '\n'.join(new_cats)
+                account.new_cats = '\n'.join(list(set(new_cats)))
             else:
                 account.new_cats = ''
             account.need_update = True
@@ -106,12 +106,12 @@ class YaAccountAPIView(APIView):
                 if deleted_cat in new_cats:
                     new_cats.remove(deleted_cat)
             if del_cats is not None and len(del_cats) != 0:
-                account.del_cats = '\n'.join(del_cats)
+                account.del_cats = '\n'.join(list(set(del_cats)))
             else:
                 account.del_cats = ''
 
             if new_cats is not None and len(new_cats) != 0:
-                account.new_cats = '\n'.join(new_cats)
+                account.new_cats = '\n'.join(list(set(new_cats)))
             else:
                 account.new_cats = ''
             account.need_update = True
