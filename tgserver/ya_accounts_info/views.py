@@ -31,7 +31,7 @@ class YaAccountAPIView(APIView):
         except:
             return Response({"status":'failed','data':"Account not found"})
         added_cats = data.get('added_cats')
-        if added_cats is not None:
+        if added_cats is not None and added_cats != '':
             cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n') if i != '']
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
             new_cats = [] if new_cats is None else list(set(new_cats))
@@ -45,7 +45,7 @@ class YaAccountAPIView(APIView):
             else:
                 account.new_cats = ''
         deleted_cats = data.get('deleted_cats')
-        if deleted_cats is not None:
+        if deleted_cats is not None and deleted_cats != '':
             cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
             cur_cats = [] if cur_cats is None else list(set(cur_cats))
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
@@ -75,7 +75,7 @@ class YaAccountAPIView(APIView):
         except:
             return Response({"status":'failed','data':"Account not found"})
         added_cats = data.get('added_cats')
-        if added_cats is not None:
+        if added_cats is not None and added_cats != '':
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if
                         i != ''] if account.del_cats != '' else []
@@ -95,7 +95,7 @@ class YaAccountAPIView(APIView):
                 account.new_cats = ''
             account.need_update = True
         deleted_cats = data.get('deleted_cats')
-        if deleted_cats is not None:
+        if deleted_cats is not None and deleted_cats != '':
             new_cats = [i.replace('\r', '').replace('\n', '') for i in account.new_cats.split('\n') if i != '']
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != ''] if account.del_cats != '' else []
             print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
