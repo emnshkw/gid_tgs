@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from .models import YaAccountModel
 class YaAccountAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        need_update_accounts = YaAccountModel.objects.filter(need_update=True)
+        need_update_accounts = YaAccountModel.objects.all()
         return Response({'status':'success','data':YaAccountSelizalier(need_update_accounts,many=True).data})
     def post(self,request,*args,**kwargs):
         data = request.data
