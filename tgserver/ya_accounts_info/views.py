@@ -21,11 +21,14 @@ class YaAccountAPIView(APIView):
     def patch(self,request,*args,**kwargs):
         data = request.data
         account_name = data.get('name')
-        account = YaAccountModel.objects.get(name=account_name)
+        try:
+            account = YaAccountModel.objects.get(name=account_name)
+        except:
+            return Response({"status":'failed','data':"Account not found"})
         added_cats = data.get('added_cats')
         if added_cats is not None:
-            cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n')]
-            new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n')]
+            cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n') if i != '']
+            new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
             for added_cat in added_cats:
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
@@ -34,8 +37,8 @@ class YaAccountAPIView(APIView):
             account.new_cats = '\n'.join(new_cats)
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None:
-            cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n')]
-            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n')]
+            cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
             for deleted_cat in deleted_cats:
                 cur_cats = cur_cats.remove(deleted_cat)
                 del_cats = del_cats.remove(deleted_cat)
@@ -46,5 +49,35 @@ class YaAccountAPIView(APIView):
             account.city = new_city
         if account.new_cats == '' and account.del_cats == '' and account.new_city == '':
             account.need_update = False
+        account.save()
+        return Response({"status":'success','message':"Изменения внесены!"})
+
+
+    def put(self,request,*args,**kwargs):
+        data = request.data
+        account_name = data.get('name')
+        try:
+            account = YaAccountModel.objects.get(name=account_name)
+        except:
+            return Response({"status":'failed','data':"Account not found"})
+        added_cats = data.get('added_cats')
+        if added_cats is not None:
+            new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            for added_cat in added_cats.split('\n'):
+                if added_cat not in new_cats:
+                    new_cats.append(added_cat)
+            account.new_cats = '\n'.join(new_cats)
+            account.need_update = True
+        deleted_cats = data.get('deleted_cats')
+        if deleted_cats is not None:
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
+            for deleted_cat in deleted_cats.split('\n'):
+                del_cats = del_cats.append(deleted_cat)
+            account.del_cats = '\n'.join(del_cats)
+            account.need_update = True
+        new_city = data.get('new_city')
+        if new_city is not None:
+            account.new_city = new_city
+            account.need_update = True
         account.save()
         return Response({"status":'success','message':"Изменения внесены!"})
