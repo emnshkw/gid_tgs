@@ -92,7 +92,7 @@ class YaAccountAPIView(APIView):
             print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
             # del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
-                del_cats = del_cats.append(deleted_cat)
+                del_cats.append(deleted_cat)
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(del_cats)
             else:
