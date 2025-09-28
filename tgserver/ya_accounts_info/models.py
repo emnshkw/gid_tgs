@@ -2,7 +2,7 @@ from django.db import models
 
 
 class YaAccountModel(models.Model):
-    name = models.TextField("Фамилия Имя",default='')
+    name = models.TextField("Фамилия Имя",default='',unique=True)
     categories = models.TextField("Выбранные категории",blank=True,null=True)
     city = models.TextField("Город",default='')
     new_cats = models.TextField("Категории, которые нужно добавить",blank=True,null=True)
