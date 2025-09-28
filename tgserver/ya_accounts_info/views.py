@@ -51,8 +51,8 @@ class YaAccountAPIView(APIView):
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
             del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
-                cur_cats = cur_cats.remove(deleted_cat)
-                del_cats = del_cats.remove(deleted_cat)
+                cur_cats.remove(deleted_cat)
+                del_cats.remove(deleted_cat)
             account.categories = '\n'.join(cur_cats)
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(del_cats)
@@ -77,10 +77,18 @@ class YaAccountAPIView(APIView):
         added_cats = data.get('added_cats')
         if added_cats is not None:
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if
+                        i != ''] if account.del_cats != '' else []
             new_cats = [] if new_cats is None else new_cats
             for added_cat in added_cats.split('\n'):
                 if added_cat not in new_cats:
                     new_cats.append(added_cat)
+                if added_cat in del_cats:
+                    del_cats.remove(added_cat)
+            if del_cats is not None and len(del_cats) != 0:
+                account.del_cats = '\n'.join(del_cats)
+            else:
+                account.del_cats = ''
             if new_cats is not None and len(new_cats) != 0:
                 account.new_cats = '\n'.join(new_cats)
             else:
@@ -88,15 +96,24 @@ class YaAccountAPIView(APIView):
             account.need_update = True
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None:
+            new_cats = [i.replace('\r', '').replace('\n', '') for i in account.new_cats.split('\n') if i != '']
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != ''] if account.del_cats != '' else []
             print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
             # del_cats = [] if del_cats is None else del_cats
             for deleted_cat in deleted_cats.split('\n'):
-                del_cats.append(deleted_cat)
+                if deleted_cat not in del_cats:
+                    del_cats.append(deleted_cat)
+                if deleted_cat in new_cats:
+                    new_cats.remove(deleted_cat)
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(del_cats)
             else:
                 account.del_cats = ''
+
+            if new_cats is not None and len(new_cats) != 0:
+                account.new_cats = '\n'.join(new_cats)
+            else:
+                account.new_cats = ''
             account.need_update = True
         new_city = data.get('new_city')
         if new_city is not None:
