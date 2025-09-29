@@ -16,7 +16,7 @@ def unmark_need_update(modeladmin, request, queryset):
 # ----- Admin -----
 @admin.register(YaAccountModel)
 class YaAccountAdmin(admin.ModelAdmin):
-    list_display = ("name", "city", "need_update")
+    # list_display = ("name", "city", "need_update")
     list_filter = ("need_update", "city")
     search_fields = ("name", "city")
 
