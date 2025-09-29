@@ -12,8 +12,10 @@ class YaAccountModel(models.Model):
 
 
     def __str__(self):
-        need_update = 'Программа вносит изменения' if self.need_update else "Аккаунт заполнен"
-        return f'{self.name}. {need_update}'
+        need_update = 'Программа вносит изменения' if self.new_cats != '' or self.del_cats != '' or self.new_city != '' else "Аккаунт заполнен"
+        new_cats_len = len([i for i in self.new_cats.replace("\r","").split("\n") if i != ''])
+        del_cats_len = len([i for i in self.del_cats.replace("\r","").split("\n") if i != ''])
+        return f'{self.name}. {need_update}. {new_cats_len} категорий нужно добавить, {del_cats_len} категорий нужно удалить.'
 
 
     class Meta:
