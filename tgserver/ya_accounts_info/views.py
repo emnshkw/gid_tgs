@@ -40,7 +40,10 @@ class YaAccountAPIView(APIView):
             for added_cat in added_cats.replace('\r','').split('\n'):
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
+                try:
                     new_cats.remove(added_cat)
+                except:
+                    pass
             account.categories = '\n'.join(list(set(cur_cats)))
             print(new_cats)
             if new_cats is not None and len(new_cats) != 0:
