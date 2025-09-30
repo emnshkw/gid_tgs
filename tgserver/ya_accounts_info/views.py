@@ -31,15 +31,18 @@ class YaAccountAPIView(APIView):
         except:
             return Response({"status":'failed','data':"Account not found"})
         added_cats = data.get('added_cats')
+        print(added_cats)
         if added_cats is not None and added_cats != '':
             cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n') if i != '']
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
             new_cats = [] if new_cats is None else list(set(new_cats))
-            for added_cat in added_cats.split('\n'):
+            print(new_cats)
+            for added_cat in added_cats.replace('\r','').split('\n'):
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
                     new_cats.remove(added_cat)
             account.categories = '\n'.join(list(set(cur_cats)))
+            print(new_cats)
             if new_cats is not None and len(new_cats) != 0:
                 account.new_cats = '\n'.join(list(set(new_cats)))
             else:
