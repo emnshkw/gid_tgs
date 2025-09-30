@@ -57,8 +57,11 @@ class YaAccountAPIView(APIView):
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
             del_cats = [] if del_cats is None else list(set(del_cats))
             for deleted_cat in deleted_cats.split('\n'):
-                cur_cats.remove(deleted_cat)
-                del_cats.remove(deleted_cat)
+                try:
+                    cur_cats.remove(deleted_cat)
+                    del_cats.remove(deleted_cat)
+                except:
+                    pass
             account.categories = '\n'.join(list(set(cur_cats)))
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(list(set(del_cats)))
