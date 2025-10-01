@@ -7,7 +7,7 @@ class YaAccountAPIView(APIView):
     def get(self, request, *args, **kwargs):
         need_update_accounts = YaAccountModel.objects.all()
         for account in need_update_accounts:
-            account.cur_cats = account.cur_cats.replace('Электромонтажные работы - срочный выезд','Электромонтажные работы — срочный выезд').replace('Сантехнические работы и отопление - аварийный выезд','Сантехнические работы и отопление — аварийный выезд')
+            account.categories = account.categories.replace('Электромонтажные работы - срочный выезд','Электромонтажные работы — срочный выезд').replace('Сантехнические работы и отопление - аварийный выезд','Сантехнические работы и отопление — аварийный выезд')
             account.new_cats = account.new_cats.replace('Электромонтажные работы - срочный выезд','').replace('Электромонтажные работы — срочный выезд','').replace('Сантехнические работы и отопление - аварийный выезд','').replace('Сантехнические работы и отопление — аварийный выезд','')
             account.save()
         return Response({'status':'success','data':YaAccountSelizalier(need_update_accounts,many=True).data})
