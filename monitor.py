@@ -9,7 +9,7 @@ DJANGO_BASE = "https://gid-profit.ru/api"
 DIALOGS_EP = "/dialogs/"
 OUTGOING_EP = "/messages_outgoing/"
 MESSAGES_BATCH_EP = "/messages_batch/"
-SESSIONS_DIR = "sessions"
+SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
 API_FILE = os.path.join(BASE_DIR, "api.txt")
 
 LOOP_INTERVAL = 3  # секунды между циклами
@@ -29,18 +29,17 @@ def django_headers():
     return {"Content-Type": "application/json"}
 
 def load_sessions():
-    sessions = {}
-    for fname in os.listdir(SESSIONS_DIR):
-        if fname.endswith(".session"):
-            phone = fname.replace(".session", "")
-            path = os.path.join(SESSIONS_DIR, fname)
-            sessions[phone] = Client(path, api_id=API_ID, api_hash=API_HASH)
-    return sessions
+    session_files = os.listdir(SESSIONS_DIR)
+    phones = []
+    for f in session_files:
+        if f.endswith(".session"):
+            phones.append(f.split(".")[0])
+    return phones
 
 # ============ РАБОЧИЙ КЛАСС ============
 class TelegramWorker:
-    def __init__(self, session_map, http):
-        self.session_map = session_map
+    def __init__(self,phone, http):
+        self.phone = phone
         self.http = http
         self.dialog_cache = {}
         self.sem = asyncio.Semaphore(10)
@@ -179,8 +178,8 @@ class TelegramWorker:
 
     async def run_loop(self):
         tasks = []
-        for phone, client in self.session_map.items():
-            tasks.append(self.run_for_client(client, phone))
+        for phone in self.phone:
+            tasks.append(self.run_for_client(Client(phone, api_id=API_ID, api_hash=API_HASH, workdir="sessions"), phone))
         await asyncio.gather(*tasks)
 
 # ============ ЗАПУСК ============

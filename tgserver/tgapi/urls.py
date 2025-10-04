@@ -9,5 +9,5 @@ urlpatterns = [
     path('api/messages/', MessageListCreateView.as_view()),
     path('api/messages_media/', MessageMediaListCreateView.as_view()),
     path('api/messages/<int:pk>/', MessageUpdateDeliveredView.as_view()),
-path("messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
+path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
 ] + router.urls
