@@ -183,10 +183,8 @@ class TelegramWorker:
                 # Получаем сам диалог
                 async with self.http.get(f"{DJANGO_BASE}{DIALOGS_EP}{dialog_id}/", headers=django_headers()) as r:
                     dlg = await r.json()
-                dlg_list = await r.json()
-                if not dlg_list:
-                    continue
-                dlg = dlg_list[0]  # теперь это словарь
+
+                # dlg = dlg_list[0]  # теперь это словарь
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
                 print(chat_id)
