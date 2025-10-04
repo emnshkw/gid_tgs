@@ -75,8 +75,7 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-
+        data = request.data.dict()  # если это QueryDict
         # создаём сообщение
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
