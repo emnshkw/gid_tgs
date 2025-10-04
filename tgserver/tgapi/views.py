@@ -1,13 +1,54 @@
 from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .models import Dialog, Message, Media, Profile
 from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
+class MessagesBatchView(APIView):
+    """Принимает список сообщений для пакетного добавления"""
 
+    def post(self, request):
+        messages = request.data.get("messages", [])
+        saved = []
+
+        for msg_data in messages:
+            try:
+                dialog_id = msg_data.get("dialog")
+                text = msg_data.get("text", "")
+                sender_name = msg_data.get("sender_name", "Unknown")
+                telegram_id = msg_data.get("telegram_id")
+
+                # Пропускаем, если уже есть
+                if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
+                    continue
+
+                media_instances = []
+                for m in msg_data.get("media", []):
+                    media_file = m.get("file")
+                    media_type = m.get("media_type", "photo")
+                    if media_file:
+                        media_obj = Media.objects.create(file=media_file, media_type=media_type)
+                        media_instances.append(media_obj)
+
+                msg = Message.objects.create(
+                    dialog_id=dialog_id,
+                    telegram_id=telegram_id,
+                    sender_name=sender_name,
+                    text=text,
+                    delivered=True,
+                )
+                msg.media.set(media_instances)
+                saved.append(msg.id)
+
+            except Exception as e:
+                print("❌ Ошибка batch-сохранения:", e)
+
+        return Response({"saved": saved}, status=status.HTTP_201_CREATED)
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSelizalier
