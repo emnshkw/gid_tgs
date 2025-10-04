@@ -1,521 +1,200 @@
 import asyncio
 import os
+import glob
 import tempfile
-from datetime import datetime
-import requests
+from datetime import datetime, timezone
+from pathlib import Path
+
+import aiohttp
 from pyrogram import Client
-from pyrogram.errors import FloodWait
-from pyrogram.types import InputMediaDocument, InputMediaVideo, InputMediaPhoto
+from pyrogram.types import Message, InputMediaPhoto, InputMediaVideo, InputMediaDocument
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
-MEDIA_DIR = os.path.join(BASE_DIR, "tgserver", "media")
-os.makedirs(MEDIA_DIR, exist_ok=True)
+# ======== Конфигурация ========
+API_ID = int(os.getenv("TG_API_ID", "YOUR_API_ID"))
+API_HASH = os.getenv("TG_API_HASH", "YOUR_API_HASH")
+SESSIONS_DIR = os.getenv("SESSIONS_DIR", "sessions")
+DJANGO_BASE = os.getenv("DJANGO_BASE", "http://127.0.0.1:8001/api")
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
 
-API_FILE = os.path.join(BASE_DIR, "api.txt")
-ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
-API_BASE = "http://127.0.0.1:8001/api"
+# ======== Эндпоинты ========
+PROFILES_EP = "/profiles/"
+DIALOGS_EP = "/dialogs/"
+MESSAGES_EP = "/messages/"
+MESSAGES_MEDIA_EP = "/messages_media/"
 
-# --- Чтение API ID / HASH ---
-with open(API_FILE, encoding="utf-8") as f:
-    API_ID = int(f.readline().strip())
-    API_HASH = f.readline().strip()
+# ======== Вспомогательные функции ========
+def session_phone_from_path(p: Path):
+    """Телефон из имени файла .session"""
+    name = p.name
+    if name.endswith(".session"):
+        name = name[:-8]
+    return "+" + name if not name.startswith("+") else name
 
-# --- Номера аккаунтов (в accounts.txt номера начинаются с '+') ---
-ACCOUNTS = []
-for session_file in os.listdir('sessions'):
-    ACCOUNTS.append(session_file.split('.')[0])
-def download_chat_avatar(client, chat):
-    """Скачивает аватар чата прямо в media/dialog_avatars и возвращает путь к файлу или None"""
-    if not getattr(chat, "photo", None):
-        return None
+def django_headers():
+    return {"Content-Type": "application/json"}
 
-    file_id = getattr(chat.photo, "big_file_id", None) or getattr(chat.photo, "small_file_id", None)
-    if not file_id:
-        return None
+# ======== Основной класс Worker ========
+class TelegramWorker:
+    def __init__(self):
+        self.clients = {}  # phone -> Client
+        self.session_map = {}  # phone -> Client
+        self.http = None
 
-    MEDIA_DIR = "/path/to/django/media/dialog_avatars"
-    os.makedirs(MEDIA_DIR, exist_ok=True)
-    avatar_path = os.path.join(MEDIA_DIR, f"{chat.id}.jpg")
-
-    try:
-        client.download_media(file_id, file_name=avatar_path)
-        if os.path.exists(avatar_path) and os.path.getsize(avatar_path) > 0:
-            return avatar_path
-        else:
-            return None
-    except Exception as e:
-        print(f"Ошибка скачивания аватара для chat {chat.id}: {e}")
-        return None
-# --- Вспомогательные API-функции (Django REST) ---
-def find_dialog(account_phone, chat_id):
-    """Ищем существующий диалог в Django по номеру аккаунта и chat_id."""
-    try:
-        r = requests.get(f"{API_BASE}/dialogs/")
-        r.raise_for_status()
-        for dlg in r.json():
-            try:
-                if dlg.get("account_phone") == account_phone and int(dlg.get("chat_id")) == int(chat_id):
-                    return dlg
-            except Exception:
-                continue
-    except Exception as e:
-        print("find_dialog error:", e)
-    return None
-
-
-def register_profile(phone_number: str, session_name: str, username: str = None):
-    payload = {
-        "phone_number": phone_number,
-        "session_name": session_name,
-        "username": username,
-    }
-    try:
-        r = requests.post(f"{API_BASE}/profiles/", json=payload)
-        if r.status_code in (200, 201):
-            print(f"✅ Профиль {phone_number} ({username}) зарегистрирован")
-        else:
-            print(f"❌ Ошибка при регистрации профиля: {r.status_code} {r.text}")
-    except Exception as e:
-        print(f"⚠️ Ошибка подключения к серверу: {e}")
-
-
-
-
-def get_undelivered_messages_for_account(account_phone):
-    """
-    Берём все сообщения delivered=false и фильтруем те, которые привязаны к этому аккаунту.
-    Возвращаем список сообщений (json).
-    """
-    try:
-        r = requests.get(f"{API_BASE}/messages/?delivered=false")
-        r.raise_for_status()
-        msgs = []
-        for msg in r.json():
-            try:
-                dlg = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/").json()
-                for d in dlg:
-                    if d['id'] == msg['dialog']:
-                        dlg = d
-                        if dlg["account_phone"] == account_phone:
-                            msgs.append(msg)
-            except Exception:
-                continue
-        return msgs
-    except Exception as e:
-        print("get_undelivered_messages_for_account error:", e)
-        return []
-
-def create_message(dialog_id, sender_name, text, date_iso, delivered=True, telegram_id=None,media=None):
-    """
-    Создаём сообщение через API.
-    Если передан telegram_id — проверяем уникальность (dialog + telegram_id).
-    media_file хранится как относительный путь от BASE_DIR.
-    """
-    try:
-        if telegram_id is not None:
-            q = f"{API_BASE}/messages/?dialog={dialog_id}&telegram_id={telegram_id}"
-            rchk = requests.get(q)
-            rchk.raise_for_status()
-            if rchk.json():
-
-                # Уже есть сообщение с таким telegram_id в этом диалоге
-                return False
-    except Exception:
-        # если проверка упала — продолжим попытку создания (без стопа)
-        pass
-
-    payload = {
-        "dialog": dialog_id,
-        "sender_name": sender_name,
-        "text": text or "",
-        "date": date_iso,
-        "delivered": delivered,
-        "telegram_id": telegram_id
-    }
-    files_to_send = []
-    for m in media:
-        path = m.get("file_path")
-        if not path or not os.path.exists(path):
-            continue
-        f = open(path, "rb")
-        files_to_send.append(("files", (os.path.basename(path), f)))
-    try:
-        try:
-            url = f'{API_BASE}/messages_media/'
-            r = requests.post(url, data=payload, files=files_to_send)
-            if r.status_code not in (200, 201):
-                print(f"Ошибка создания сообщения ({payload}:", r.text)
-            else:
-                print("Сообщение с медиа добавлено в Django")
-        finally:
-            for _, (_, f) in files_to_send:
-                f.close()
-
-        if r.status_code in (200, 201):
-            return r.json()
-        else:
-            print("create_message failed:", r.status_code, r.text)
-            return False
-    except Exception as e:
-        print("create_message error:", e)
-        return False
-def has_avatar(chat):
-    return chat.photo is not None and getattr(chat.photo, "big_file_id", None)
-def mark_delivered(message_id,new_id):
-    try:
-        requests.delete(f"{API_BASE}/messages/{message_id}/", json={"delivered": True,'created_id':new_id})
-        print(f"Marked delivered: {message_id}")
-    except Exception as e:
-        print("mark_delivered error:", e)
-
-# --- Монитор для одного аккаунта ---
-class AccountMonitor:
-    def __init__(self, phone):
-        """
-        phone должен быть в формате с '+' (тот, что в accounts.txt).
-        Сессии в папке sessions хранятся без '+' — используем phone.replace("+","") как имя сессии.
-        """
-        self.phone = phone
-        session_name = phone.replace("+", "")
-        self.client = Client(session_name, api_id=API_ID, api_hash=API_HASH, workdir=SESSIONS_DIR)
-
-        self.seen_messages = set()  # локальный кэш id сообщений, чтобы не пересоздавать много раз
-        self.account_user_id = None
-
-    def create_dialog(self, account_phone, chat_id, chat_title, chat):
-        existing = find_dialog(account_phone, chat_id)
-        if existing:
-            return existing["id"]
-
-        payload = {
-            "account_phone": account_phone,
-            "chat_id": str(chat_id),
-            "chat_title": chat_title
-        }
-
-        avatar_path = download_chat_avatar(self.client, chat)
-        files = {"avatar": open(avatar_path, "rb")} if avatar_path else None
-
-        try:
-            if files:
-                r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
-                files["avatar"].close()
-            else:
-                r = requests.post(f"{API_BASE}/dialogs/", data=payload)
-
-            if r.status_code in (200, 201):
-                dlg_id = r.json().get("id")
-                print(f"Создан диалог {chat_title} ({chat_id}) -> id {dlg_id}")
-                return dlg_id
-            else:
-                print(f"Ошибка create_dialog: {r.status_code} {r.text}")
-
-        except Exception as e:
-            print("create_dialog error:", e)
-
-        return None
-
-    def upload_avatar(self, chat):
-        if not chat.photo:
-            return None
-        try:
-            # создаём временный файл с суффиксом .jpg
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmpfile:
-                tmp_path = tmpfile.name
-
-            # скачиваем аватар
-            self.client.download_media(chat.photo.big_file_id, file_name=tmp_path)
-
-            # формируем payload и files
-            payload = {"telegram_id": chat.id, "title": chat.first_name or chat.title}
-            with open(tmp_path, "rb") as f:
-                files = {"avatar": f}
-                r = requests.post(f"{API_BASE}/dialogs/", data=payload, files=files)
-
-            if r.status_code in (200, 201):
-                print(f"✅ Аватар {chat.id} загружен")
-            else:
-                print(f"⚠️ Ошибка при загрузке аватара {chat.id}: {r.status_code} {r.text}")
-
-            os.remove(tmp_path)
-            return tmp_path
-
-        except Exception as e:
-            print(f"Ошибка загрузки аватара для {chat.id}: {e}")
-            return None
     async def start(self):
-        await self.client.start()
-        me = await self.client.get_me()
-        self.account_user_id = me.id
-        print(f'Фото - {me.photo}')
-        register_profile(self.phone, self.phone, f'Имя: {me.first_name} Тег: @{me.username}')
-        print(f"[{self.phone}] client started as {me.first_name} ({self.account_user_id})")
-
-    def get_input_media(self,file_path, caption=None):
-        """Определяем тип медиа по расширению"""
-        ext = file_path.lower().split(".")[-1]
-        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
-            return InputMediaPhoto(file_path, caption=caption)
-        elif ext in ["mp4", "mov", "avi", "mkv"]:
-            return InputMediaVideo(file_path, caption=caption)
-        else:
-            return InputMediaDocument(file_path, caption=caption)
-
-    async def _extract_media_from_msg(self, msg):
-        """
-        Вспомогательная функция: извлекает медиа из одного сообщения
-        """
-        media_list = []
-        try:
-            if msg.photo:
-                suffix = ".jpg"
-            elif msg.video:
-                suffix = ".mp4"
-            elif msg.voice:
-                suffix = ".ogg"
-            elif msg.video_note:
-                suffix = ".mp4"
-            elif msg.document:
-                suffix = os.path.splitext(msg.document.file_name or "")[1] or ".dat"
-            else:
-                return media_list  # нет медиа
-
-            # временный файл
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
-                file_path = await self.client.download_media(msg, file_name=tf.name)
-                media_type = (
-                    "photo" if msg.photo else
-                    "video" if msg.video else
-                    "voice" if msg.voice else
-                    "video_note" if msg.video_note else
-                    "document"
-                )
-                media_list.append({"file_path": file_path, "media_type": media_type})
-        except Exception as e:
-            print(f"Ошибка скачивания медиа для msg {msg.id}: {e}")
-        return media_list
-    async def get_media_files(self, msg):
-        """
-        Получает список медиа-файлов из сообщения или альбома.
-        client: pyrogram.Client
-        msg: pyrogram.types.Message
-        Возвращает список словарей {"file_path": ..., "media_type": ...}
-        """
-        media_list = []
-
-        # --- Если сообщение часть альбома ---
-        if msg.media_group_id:
-            # Получаем все сообщения в этом альбоме
-            album_msgs = [m async for m in self.client.get_chat_history(msg.chat.id, limit=100)
-                          if m.media_group_id == msg.media_group_id]
-
-            for m in album_msgs:
-                media_list.extend(await self._extract_media_from_msg(m))
-        else:
-            media_list.extend(await self._extract_media_from_msg(msg))
-
-        return media_list
+        self.http = aiohttp.ClientSession()
+        await self._load_sessions()
+        asyncio.create_task(self.poll_outgoing_loop())
 
     async def stop(self):
-        try:
-            await self.client.stop()
-        except Exception:
-            pass
-        print(f"[{self.phone}] client stopped")
+        for client in self.clients.values():
+            await client.stop()
+        if self.http:
+            await self.http.close()
 
-    async def scan_once(self):
-        try:
-            async for dialog in self.client.get_dialogs(limit=0):
-                chat = dialog.chat
-                chat_id = chat.id
-                chat_title = chat.title or (
-                            (chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
-                dialog_id = self.create_dialog(self.phone, chat_id, chat_title, chat)
+    async def _load_sessions(self):
+        p = Path(SESSIONS_DIR)
+        for fpath in glob.glob(str(p / "*.session")):
+            phone = session_phone_from_path(Path(fpath))
+            await self._start_client(fpath, phone)
 
-                if not dialog_id:
+    async def _start_client(self, session_path, phone):
+        client = Client(session_path, api_id=API_ID, api_hash=API_HASH)
+        await client.start()
+        self.clients[phone] = client
+        self.session_map[phone] = client
+        # Вешаем handler входящих сообщений
+        client.add_handler(lambda c, m: asyncio.create_task(self.handle_incoming_message(phone, m)))
+        print(f"[{phone}] client started")
+
+    async def handle_incoming_message(self, phone, message: Message):
+        """Сохраняем входящее сообщение в Django"""
+        dialog_id = await self.get_or_create_dialog(phone, message.chat)
+        if not dialog_id:
+            return
+
+        sender = getattr(message.from_user, "first_name", "Unknown")
+        text = message.text or message.caption or ""
+        date_iso = message.date.astimezone(timezone.utc).isoformat()
+
+        # Получаем медиа
+        media_files = await self.extract_media(message)
+
+        payload = {
+            "dialog": dialog_id,
+            "sender_name": sender,
+            "text": text,
+            "date": date_iso,
+            "delivered": True,
+            "telegram_id": message.message_id
+        }
+
+        if media_files:
+            files_to_send = []
+            for m in media_files:
+                f = open(m['file_path'], "rb")
+                files_to_send.append(("files", (os.path.basename(m['file_path']), f)))
+            try:
+                async with self.http.post(DJANGO_BASE+MESSAGES_MEDIA_EP, data=payload, headers=django_headers(), files=files_to_send) as resp:
+                    if resp.status in (200,201):
+                        print(f"[{phone}] Incoming media message saved")
+            finally:
+                for _, (_, f) in files_to_send:
+                    f.close()
+        else:
+            async with self.http.post(DJANGO_BASE+MESSAGES_EP, json=payload, headers=django_headers()) as resp:
+                if resp.status in (200,201):
+                    print(f"[{phone}] Incoming message saved")
+
+    async def get_or_create_dialog(self, phone, chat):
+        """Находим или создаем диалог в Django"""
+        try:
+            async with self.http.get(DJANGO_BASE+DIALOGS_EP, headers=django_headers()) as r:
+                dialogs = await r.json()
+                for dlg in dialogs:
+                    if dlg['account_phone'] == phone and str(dlg['chat_id']) == str(chat.id):
+                        return dlg['id']
+            # Создание нового диалога
+            payload = {"account_phone": phone, "chat_id": str(chat.id), "chat_title": chat.title or str(chat.id)}
+            files = None
+            if getattr(chat, "photo", None):
+                tmpfile = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                await Client.download_media(Client, chat.photo.big_file_id, file_name=tmpfile.name)
+                files = {"avatar": open(tmpfile.name,"rb")}
+            async with self.http.post(DJANGO_BASE+DIALOGS_EP, data=payload, headers=django_headers(), files=files) as r:
+                if r.status in (200,201):
+                    res = await r.json()
+                    return res.get("id")
+        except Exception as e:
+            print("get_or_create_dialog error:", e)
+        return None
+
+    async def extract_media(self, message):
+        """Извлекаем медиа файлы из сообщения"""
+        media_list = []
+        suffix = None
+        if message.photo:
+            suffix = ".jpg"
+        elif message.video:
+            suffix = ".mp4"
+        elif message.document:
+            suffix = os.path.splitext(message.document.file_name)[1] or ".dat"
+        else:
+            return media_list
+
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        await Client.download_media(Client, message, file_name=tmpfile.name)
+        media_list.append({"file_path": tmpfile.name, "media_type": "photo" if suffix==".jpg" else "document"})
+        return media_list
+
+    async def poll_outgoing_loop(self):
+        while True:
+            try:
+                await self.poll_outgoing_once()
+            except Exception as e:
+                print("poll_outgoing_loop error:", e)
+            await asyncio.sleep(POLL_INTERVAL)
+
+    async def poll_outgoing_once(self):
+        try:
+            async with self.http.get(DJANGO_BASE+MESSAGES_EP+"?delivered=false", headers=django_headers()) as r:
+                messages = await r.json()
+            for msg in messages:
+                phone = msg['dialog']['account_phone']
+                chat_id = msg['dialog']['chat_id']
+                text = msg['text']
+                media = msg.get("media")
+                client = self.session_map.get(phone)
+                if not client:
                     continue
 
-                try:
-                    # --- Отправка недоставленных сообщений ---
-                    undelivered = get_undelivered_messages_for_account(self.phone)
-                    if undelivered:
-                        print(f"[{self.phone}] found {len(undelivered)} undelivered messages to send")
-
-                    for msg in undelivered:
-                        try:
-                            # Получаем chat_id для сообщения
-                            try:
-                                dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/")
-                                dlg_resp.raise_for_status()
-                                dlg = dlg_resp.json()
-                                for d in dlg:
-                                    if d['id'] == msg['dialog']:
-                                        msg_chat_id = d["chat_id"]
-                                        break
-                            except Exception as e:
-                                print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
-                                continue
-
-                            # Пропускаем, если chat_id не совпадает с текущим диалогом
-                            if str(msg_chat_id) != str(chat_id):
-                                continue
-
-                            unique_key = f"{self.phone}:{msg['id']}"
-                            if unique_key in self.seen_messages:
-                                continue
-                            self.seen_messages.add(unique_key)
-
-                            # --- Отправка медиа / текста ---
-                            if msg.get('media'):
-                                media_files = list(msg['media'])
-                                if len(media_files) == 1:
-                                    mf = media_files[0]
-                                    media = self.get_input_media(mf['file'], caption=msg['text'] or "")
-                                    url = f"http://127.0.0.1:8001{mf['file']}"
-
-                                    r = requests.get(url, stream=True)
-                                    if r.status_code != 200:
-                                        print(f"Не удалось скачать файл {url}")
-                                        continue
-
-                                    suffix = os.path.splitext(url)[-1]
-                                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                                        for chunk in r.iter_content(1024):
-                                            tmp.write(chunk)
-                                        tmp_path = tmp.name
-
-                                    if isinstance(media, InputMediaPhoto):
-                                        await self.client.send_photo(chat_id, tmp_path, caption=msg['text'] or "")
-                                    elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(chat_id, tmp_path, caption=msg['text'] or "")
-                                    else:
-                                        await self.client.send_document(chat_id, tmp_path, caption=msg['text'] or "")
-                                else:
-                                    tmp_files, photos, videos, documents = [], [], [], []
-                                    for i, mf in enumerate(media_files):
-                                        caption = msg['text'] if i == 0 else None
-                                        url = f"http://127.0.0.1:8001{mf['file']}"
-
-                                        r = requests.get(url, stream=True)
-                                        if r.status_code != 200:
-                                            print(f"Не удалось скачать файл {url}")
-                                            continue
-
-                                        suffix = os.path.splitext(url)[-1]
-                                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                                            for chunk in r.iter_content(1024):
-                                                tmp.write(chunk)
-                                            tmp.close()
-                                            tmp_files.append(tmp.name)
-
-                                        ext = tmp.name.lower().split(".")[-1]
-                                        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
-                                            photos.append(self.get_input_media(tmp.name, caption=caption))
-                                        elif ext in ["mp4", "mov", "avi", "mkv"]:
-                                            videos.append(self.get_input_media(tmp.name, caption=caption))
-                                        else:
-                                            documents.append(self.get_input_media(tmp.name, caption=caption))
-
-                                    for media_group in [photos, videos]:
-                                        if media_group:
-                                            await self.client.send_media_group(chat_id, media_group)
-                                    for doc in documents:
-                                        await self.client.send_document(chat_id, doc.media)
-                            else:
-                                await self.client.send_message(chat_id, msg.get('text') or "")
-
-                            mark_delivered(msg["id"], None)
-                            print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
-
-                        except FloodWait as e:
-                            wait = int(e.value) + 1
-                            print(f"[{self.phone}] FloodWait {wait}s while sending, sleeping...")
-                            await asyncio.sleep(wait)
-                        except Exception as e:
-                            print(f"[{self.phone}] Send error for message {msg.get('id')}: {e}")
-
-                    # --- История чата из Telegram ---
-                    async for tg_msg in self.client.get_chat_history(chat_id, limit=0):
-                        if not getattr(tg_msg, "text", None) and not (
-                                getattr(tg_msg, "media", None) or getattr(tg_msg, "photo", None) or getattr(tg_msg,
-                                                                                                            "document",
-                                                                                                            None)):
-                            continue
-
-                        unique_key = f"{self.phone}:{tg_msg.id}"
-                        if unique_key in self.seen_messages:
-                            continue
-                        self.seen_messages.add(unique_key)
-
-                        date_iso = tg_msg.date.isoformat()
-
-                        # Безопасная обработка from_user
-                        from_user = getattr(tg_msg, "from_user", None)
-                        if from_user is None:
-                            sender = "Unknown"
-                        elif getattr(from_user, "is_self", False):
-                            sender = "Я"
+                if media:
+                    for m in media:
+                        ext = os.path.splitext(m['file_path'])[1]
+                        if ext in [".jpg",".png"]:
+                            await client.send_photo(chat_id, m['file_path'], caption=text)
                         else:
-                            sender = getattr(from_user, "first_name", None) or getattr(from_user, "username",
-                                                                                       None) or "Unknown"
+                            await client.send_document(chat_id, m['file_path'], caption=text)
+                else:
+                    await client.send_message(chat_id, text)
 
-                        text = getattr(tg_msg, "text", "") or ""
-                        if not text and (tg_msg.photo or tg_msg.video or tg_msg.document or tg_msg.voice):
-                            text = f"<media:{tg_msg.id}>"
-
-                        files = await self.get_media_files(tg_msg)
-                        files_to_up = [{"file_path": f['file_path'], "media_type": f['media_type']} for f in files]
-
-                        created = create_message(
-                            dialog_id,
-                            sender,
-                            text,
-                            date_iso,
-                            delivered=True,
-                            telegram_id=getattr(tg_msg, "id", None),
-                            media=files_to_up
-                        )
-                        if created:
-                            print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={tg_msg.id}")
-
-                except FloodWait as e:
-                    wait = int(e.value) + 1
-                    print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
-                    await asyncio.sleep(wait)
-                except Exception as e:
-                    print(f"[{self.phone}] history loop error for chat {chat_id}: {e}")
-
+                # Отметка доставленного
+                await self.http.delete(f"{DJANGO_BASE}{MESSAGES_EP}{msg['id']}/", json={"delivered": True}, headers=django_headers())
+                print(f"[{phone}] Sent message {msg['id']}")
         except Exception as e:
-            print(f"[{self.phone}] scan error: {e}")
+            print("poll_outgoing_once error:", e)
 
 
-# --- Главный цикл ---
-async def run_loop():
-    monitors = [AccountMonitor(phone) for phone in ACCOUNTS]
-    # старт всех клиентов
-    for m in monitors:
-        print(m.phone)
-        try:
-            await m.start()
-        except Exception as e:
-            print(f"Failed to start monitor for {m.phone}: {e}")
-
+# ======== Запуск ========
+async def main():
+    worker = TelegramWorker()
+    await worker.start()
     try:
         while True:
-            tasks = [m.scan_once() for m in monitors]
-            # параллельно запускаем сканы
-            await asyncio.gather(*tasks)
-            await asyncio.sleep(3)
-            print("В главном цикле...")
+            await asyncio.sleep(3600)
     except KeyboardInterrupt:
-        print("Stopping monitors...")
+        print("Stopping worker...")
     finally:
-        for m in monitors:
-            try:
-                await m.stop()
-            except Exception:
-                pass
+        await worker.stop()
 
 if __name__ == "__main__":
-    asyncio.run(run_loop())
+    asyncio.run(main())
