@@ -326,51 +326,53 @@ class AccountMonitor:
 
     async def scan_once(self):
         try:
-            # Проходим по диалогам (limit ограничивает количество)
             async for dialog in self.client.get_dialogs(limit=0):
                 chat = dialog.chat
-                # self.upload_avatar(chat)
                 chat_id = chat.id
-                # Сформируем читабельное название чата
-                chat_title = chat.title or ((chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
-                dialog_id = self.create_dialog(self.phone, chat_id, chat_title,chat)
+                chat_title = chat.title or (
+                            (chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
+                dialog_id = self.create_dialog(self.phone, chat_id, chat_title, chat)
                 if not dialog_id:
                     continue
 
-                # Получаем историю (не очень большой лимит чтобы не получать FloodWait)
                 try:
-                    # --- Отправка сообщений из Django для этого аккаунта ---
+                    # --- Отправка недоставленных сообщений ---
                     undelivered = get_undelivered_messages_for_account(self.phone)
                     if undelivered:
                         print(f"[{self.phone}] found {len(undelivered)} undelivered messages to send")
+
                     for msg in undelivered:
                         try:
-                            # Получаем диалог, чтобы узнать chat_id
+                            # Получаем chat_id для сообщения
                             try:
                                 dlg_resp = requests.get(f"{API_BASE}/dialogs/{msg['dialog']}/")
-
                                 dlg_resp.raise_for_status()
                                 dlg = dlg_resp.json()
                                 for d in dlg:
                                     if d['id'] == msg['dialog']:
-                                        chat_id = d["chat_id"]
+                                        msg_chat_id = d["chat_id"]
                                         break
                             except Exception as e:
                                 print(f"[{self.phone}] cannot fetch dialog {msg.get('dialog')}: {e}")
                                 continue
 
-                            if msg['media']:
-                                media_files = list(msg['media'])
+                            # Пропускаем, если chat_id не совпадает с текущим диалогом
+                            if str(msg_chat_id) != str(chat_id):
+                                continue
 
+                            unique_key = f"{self.phone}:{msg['id']}"
+                            if unique_key in self.seen_messages:
+                                continue
+                            self.seen_messages.add(unique_key)
+
+                            # --- Отправка медиа / текста ---
+                            if msg.get('media'):
+                                media_files = list(msg['media'])
                                 if len(media_files) == 1:
-                                    # Один файл → отправляем как фото/видео/документ
                                     mf = media_files[0]
                                     media = self.get_input_media(mf['file'], caption=msg['text'] or "")
-                                    print(f"http://127.0.0.1:8001{mf['file']}")
-
                                     url = f"http://127.0.0.1:8001{mf['file']}"
 
-                                    # Скачиваем файл во временный
                                     r = requests.get(url, stream=True)
                                     if r.status_code != 200:
                                         print(f"Не удалось скачать файл {url}")
@@ -381,29 +383,20 @@ class AccountMonitor:
                                         for chunk in r.iter_content(1024):
                                             tmp.write(chunk)
                                         tmp_path = tmp.name
+
                                     if isinstance(media, InputMediaPhoto):
-                                        await self.client.send_photo(chat_id, tmp_path,
-                                                                caption=msg['text'] or "")
+                                        await self.client.send_photo(chat_id, tmp_path, caption=msg['text'] or "")
                                     elif isinstance(media, InputMediaVideo):
-                                        await self.client.send_video(chat_id, tmp_path,
-                                                                caption=msg['text'] or "")
+                                        await self.client.send_video(chat_id, tmp_path, caption=msg['text'] or "")
                                     else:
-                                        await self.client.send_document(chat_id, tmp_path,
-                                                                   caption=msg['text'] or "")
+                                        await self.client.send_document(chat_id, tmp_path, caption=msg['text'] or "")
                                 else:
                                     # Несколько файлов → альбом
-                                    # media_group = []
-                                    tmp_files = []
-                                    photos = []
-                                    videos = []
-                                    documents = []
+                                    tmp_files, photos, videos, documents = [], [], [], []
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
-                                        print(f"http://127.0.0.1:8001{mf['file']}")
-
                                         url = f"http://127.0.0.1:8001{mf['file']}"
 
-                                        # Скачиваем файл во временный
                                         r = requests.get(url, stream=True)
                                         if r.status_code != 200:
                                             print(f"Не удалось скачать файл {url}")
@@ -415,29 +408,26 @@ class AccountMonitor:
                                                 tmp.write(chunk)
                                             tmp.close()
                                             tmp_files.append(tmp.name)
+
                                         ext = tmp.name.lower().split(".")[-1]
                                         if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
-                                            photos.append(self.get_input_media(tmp.name, caption=caption))  # подпись только к первому
+                                            photos.append(self.get_input_media(tmp.name, caption=caption))
                                         elif ext in ["mp4", "mov", "avi", "mkv"]:
                                             videos.append(self.get_input_media(tmp.name, caption=caption))
                                         else:
                                             documents.append(self.get_input_media(tmp.name, caption=caption))
 
-                                        # media_group.append(self.get_input_media(tmp.name, caption=caption))
-                                    # print(media_group)
-                                    for media_group in [photos,videos]:
-                                        # print(f'{media_group} - {len(media_group)}')
-                                        if len(media_group) != 0:
+                                    for media_group in [photos, videos]:
+                                        if media_group:
                                             await self.client.send_media_group(chat_id, media_group)
                                     for doc in documents:
-                                        await self.client.send_document(chat_id,doc.media)
+                                        await self.client.send_document(chat_id, doc.media)
                             else:
-                                # Только текст
-                                await self.client.send_message(chat_id, msg['text'] or "")
+                                await self.client.send_message(chat_id, msg.get('text') or "")
 
-                            # Помечаем как доставленное
                             mark_delivered(msg["id"], None)
                             print(f"[{self.phone}] sent message {msg['id']} to chat {chat_id}")
+
                         except FloodWait as e:
                             wait = int(e.value) + 1
                             print(f"[{self.phone}] FloodWait {wait}s while sending, sleeping...")
@@ -445,49 +435,32 @@ class AccountMonitor:
                         except Exception as e:
                             print(f"[{self.phone}] Send error for message {msg.get('id')}: {e}")
 
-
-                    async for msg in self.client.get_chat_history(chat_id, limit=0):
-                        # Пропускаем системные пустые сообщения
-                        if not getattr(msg, "text", None) and not (getattr(msg, "media", None) or getattr(msg, "photo", None) or getattr(msg, "document", None)):
+                    # --- История чата из Telegram ---
+                    async for tg_msg in self.client.get_chat_history(chat_id, limit=0):
+                        if not getattr(tg_msg, "text", None) and not (
+                                getattr(tg_msg, "media", None) or getattr(tg_msg, "photo", None) or getattr(tg_msg,
+                                                                                                            "document",
+                                                                                                            None)):
                             continue
 
-                        # предотвращаем повторную обработку в рамках этого процесса
-                        unique_key = f"{self.phone}:{msg.id}"
+                        unique_key = f"{self.phone}:{tg_msg.id}"
                         if unique_key in self.seen_messages:
                             continue
                         self.seen_messages.add(unique_key)
 
-                        # Подготовка полей
-                        date_iso = msg.date.isoformat()
-                        if getattr(msg, "from_user", None) and getattr(msg.from_user, "is_self", False):
-                            sender = "Я"
-                        elif getattr(msg, "from_user", None):
-                            sender = getattr(msg.from_user, "first_name", "Unknown")
-                        else:
-                            sender = "Unknown"
-                        text = getattr(msg, "text", "") or ""
+                        date_iso = tg_msg.date.isoformat()
+                        sender = "Я" if getattr(tg_msg.from_user, '') and getattr(tg_msg.from_user, "is_self",
+                                                                                    False) else getattr(
+                            tg_msg.from_user, "first_name", "Unknown")
+                        text = getattr(tg_msg, "text", "") or ""
+                        files = await self.get_media_files(tg_msg)
+                        files_to_up = [{"file_path": f['file_path'], "media_type": f['media_type']} for f in files]
 
-                        files = await self.get_media_files(msg)
-                        files_to_up = []
-                        for f in files:
-                            print(f"Файл: {f['file_path']}, тип: {f['media_type']}")
+                        created = create_message(dialog_id, sender, text, date_iso, delivered=True,
+                                                 telegram_id=getattr(tg_msg, "id", None), media=files_to_up)
+                        if created:
+                            print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={tg_msg.id}")
 
-                            files_to_up.append({"file_path":f['file_path'],'media_type':f['media_type']})
-
-                        # Создаём сообщение в Django (отмечаем как delivered=True т.к. это сообщение из Telegram)
-                        created = create_message(dialog_id, sender, text, date_iso,
-                                                 delivered=True, telegram_id=getattr(msg, "id", None),media=files_to_up)
-                        if created != False:
-                            print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={getattr(msg,'id',None)}")
-                            # undelivered = get_undelivered_messages_for_account(self.phone)
-                            # if undelivered:
-                            #     print(f"[{self.phone}] найдено {len(undelivered)} недоставленных, ищем нужное подставляем медиа")
-                            # for msg in undelivered:
-                            #     if msg['dialog'] == dialog_id:
-                            #         if msg['text'] == text and msg['sender'] == sender:
-                            #             mark_delivered(msg,created['id'])
-                            #             print("Пометили с переносом текста..")
-                            #             break
                 except FloodWait as e:
                     wait = int(e.value) + 1
                     print(f"[{self.phone}] FloodWait {wait}s while fetching history for chat {chat_id}, sleeping...")
@@ -495,10 +468,8 @@ class AccountMonitor:
                 except Exception as e:
                     print(f"[{self.phone}] history loop error for chat {chat_id}: {e}")
 
-
-
         except Exception as e:
-            print(f"[{self.phone}] scan error:", e)
+            print(f"[{self.phone}] scan error: {e}")
 
 
 # --- Главный цикл ---
