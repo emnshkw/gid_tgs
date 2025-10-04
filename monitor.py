@@ -196,6 +196,7 @@ class TelegramWorker:
                 print(dlg)
                 text = msg['text']
                 media = msg.get("media")
+                print(client)
                 client = self.session_map.get(phone)
                 if not client:
                     continue
