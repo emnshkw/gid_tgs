@@ -437,6 +437,7 @@ class AccountMonitor:
 
                     # --- История чата из Telegram ---
                     async for tg_msg in self.client.get_chat_history(chat_id, limit=0):
+                        # Пропускаем пустые системные сообщения
                         if not getattr(tg_msg, "text", None) and not (
                                 getattr(tg_msg, "media", None) or getattr(tg_msg, "photo", None) or getattr(tg_msg,
                                                                                                             "document",
@@ -449,17 +450,29 @@ class AccountMonitor:
                         self.seen_messages.add(unique_key)
 
                         date_iso = tg_msg.date.isoformat()
-                        sender = "Я" if getattr(tg_msg.from_user, '') and getattr(tg_msg.from_user, "is_self",
-                                                                                    False) else getattr(
-                            tg_msg.from_user, "first_name", "Unknown")
+
+                        # Безопасная обработка from_user
+                        from_user = getattr(tg_msg, "from_user", None)
+                        if from_user is None:
+                            sender = "Unknown"
+                        elif getattr(from_user, "is_self", False):
+                            sender = "Я"
+                        else:
+                            sender = getattr(from_user, "first_name", None) or getattr(from_user, "username",
+                                                                                       None) or "Unknown"
+
                         text = getattr(tg_msg, "text", "") or ""
+
+                        # Получаем медиа
                         files = await self.get_media_files(tg_msg)
                         files_to_up = [{"file_path": f['file_path'], "media_type": f['media_type']} for f in files]
 
+                        # Создаём сообщение в Django
                         created = create_message(dialog_id, sender, text, date_iso, delivered=True,
                                                  telegram_id=getattr(tg_msg, "id", None), media=files_to_up)
                         if created:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={tg_msg.id}")
+
 
                 except FloodWait as e:
                     wait = int(e.value) + 1
