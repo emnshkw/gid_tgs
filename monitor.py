@@ -14,7 +14,7 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 
 API_FILE = os.path.join(BASE_DIR, "api.txt")
 ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
-API_BASE = "http://127.0.0.1/api"
+API_BASE = "http://127.0.0.1:8001/api"
 
 # --- Чтение API ID / HASH ---
 with open(API_FILE, encoding="utf-8") as f:
@@ -366,9 +366,9 @@ class AccountMonitor:
                                     # Один файл → отправляем как фото/видео/документ
                                     mf = media_files[0]
                                     media = self.get_input_media(mf['file'], caption=msg['text'] or "")
-                                    print(f"http://5.129.253.254{mf['file']}")
+                                    print(f"http://127.0.0.1:8001{mf['file']}")
 
-                                    url = f"http://5.129.253.254{mf['file']}"
+                                    url = f"http://127.0.0.1:8001{mf['file']}"
 
                                     # Скачиваем файл во временный
                                     r = requests.get(url, stream=True)
@@ -399,9 +399,9 @@ class AccountMonitor:
                                     documents = []
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
-                                        print(f"http://5.129.253.254{mf['file']}")
+                                        print(f"http://127.0.0.1:8001{mf['file']}")
 
-                                        url = f"http://5.129.253.254{mf['file']}"
+                                        url = f"http://127.0.0.1:8001{mf['file']}"
 
                                         # Скачиваем файл во временный
                                         r = requests.get(url, stream=True)
