@@ -68,6 +68,7 @@ class TelegramWorker:
     async def _start_client(self, session_path, phone):
         client = Client(session_path, api_id=API_ID, api_hash=API_HASH)
         await client.start()
+        print(f"[{phone}] client started, me={await client.get_me()}")
         self.clients[phone] = client
         self.session_map[phone] = client
         # Вешаем handler входящих сообщений
@@ -75,6 +76,7 @@ class TelegramWorker:
         print(f"[{phone}] client started")
 
     async def handle_incoming_message(self, phone, message: Message):
+        print(f"[{phone}] Incoming message from {message.chat.id}: {message.text}")
         """Сохраняем входящее сообщение в Django"""
         dialog_id = await self.get_or_create_dialog(phone, message.chat)
         if not dialog_id:
