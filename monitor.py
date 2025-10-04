@@ -8,10 +8,18 @@ from pathlib import Path
 import aiohttp
 from pyrogram import Client
 from pyrogram.types import Message, InputMediaPhoto, InputMediaVideo, InputMediaDocument
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ======== Конфигурация ========
-API_ID = int(os.getenv("TG_API_ID", "YOUR_API_ID"))
-API_HASH = os.getenv("TG_API_HASH", "YOUR_API_HASH")
+API_FILE = os.path.join(BASE_DIR, "api.txt")
+ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
+API_BASE = "http://127.0.0.1:8001/api"
+
+# --- Чтение API ID / HASH ---
+with open(API_FILE, encoding="utf-8") as f:
+    API_ID = int(f.readline().strip())
+    API_HASH = f.readline().strip()
+
 SESSIONS_DIR = os.getenv("SESSIONS_DIR", "sessions")
 DJANGO_BASE = os.getenv("DJANGO_BASE", "http://127.0.0.1:8001/api")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
