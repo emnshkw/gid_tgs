@@ -189,6 +189,7 @@ class TelegramWorker:
                 dlg = dlg_list[0]  # теперь это словарь
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
+                print(chat_id)
                 if int(chat_id) != 758861869:
                     continue
                 print(dlg)
