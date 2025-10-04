@@ -145,7 +145,7 @@ def create_message(dialog_id, sender_name, text, date_iso, delivered=True, teleg
             url = f'{API_BASE}/messages_media/'
             r = requests.post(url, data=payload, files=files_to_send)
             if r.status_code not in (200, 201):
-                print("Ошибка создания сообщения:", r.text)
+                print(f"Ошибка создания сообщения ({payload}:", r.text)
             else:
                 print("Сообщение с медиа добавлено в Django")
         finally:
