@@ -1,234 +1,344 @@
-import asyncio
 import os
-import glob
-import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
-
+import asyncio
 import aiohttp
+import tempfile
 from pyrogram import Client
-from pyrogram.types import Message, InputMediaPhoto, InputMediaVideo, InputMediaDocument
+from pyrogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument
+
+# ===================== Настройки =====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# ======== Конфигурация ========
+SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
 API_FILE = os.path.join(BASE_DIR, "api.txt")
-ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.txt")
-API_BASE = "http://127.0.0.1:8001/api"
 
-# --- Чтение API ID / HASH ---
+DJANGO_BASE = "https://gid-profit.ru"
+DIALOGS_EP = "/api/dialogs/"
+MESSAGES_EP = "/api/messages/"
+
+LOOP_INTERVAL = 3  # секунды между циклами
+
+# ===================== Чтение API =====================
 with open(API_FILE, encoding="utf-8") as f:
     API_ID = int(f.readline().strip())
     API_HASH = f.readline().strip()
 
-SESSIONS_DIR = os.getenv("SESSIONS_DIR", "sessions")
-DJANGO_BASE = os.getenv("DJANGO_BASE", "http://127.0.0.1:8001/api")
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
-
-# ======== Эндпоинты ========
-PROFILES_EP = "/profiles/"
-DIALOGS_EP = "/dialogs/"
-MESSAGES_EP = "/messages/"
-MESSAGES_MEDIA_EP = "/messages_media/"
-
-# ======== Вспомогательные функции ========
-def session_phone_from_path(p: Path):
-    """Телефон из имени файла .session"""
-    name = p.name
-    if name.endswith(".session"):
-        name = name[:-8]
-    return "+" + name if not name.startswith("+") else name
-
+# ===================== Заголовки для Django =====================
 def django_headers():
-    return {"Content-Type": "application/json"}
+    return {"Accept": "application/json"}
+def get_input_media(file_path, caption=None):
+    ext = file_path.lower().split(".")[-1]
+    if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+        return InputMediaPhoto(file_path, caption=caption)
+    elif ext in ["mp4", "mov", "avi", "mkv"]:
+        return InputMediaVideo(file_path, caption=caption)
+    else:
+        return InputMediaDocument(file_path, caption=caption)
 
-# ======== Основной класс Worker ========
-class TelegramWorker:
-    def __init__(self):
-        self.clients = {}  # phone -> Client
-        self.session_map = {}  # phone -> Client
-        self.http = None
+# --- Скачиваем файл с Django ---
+async def download_django_file(http: aiohttp.ClientSession, file_url: str):
+    async with http.get(file_url) as resp:
+        if resp.status != 200:
+            print(f"Не удалось скачать файл {file_url}")
+            return None
+        suffix = os.path.splitext(file_url)[-1] or ".dat"
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        content = await resp.read()
+        tmp.write(content)
+        tmp.close()
+        return tmp.name
 
-    async def start(self):
-        self.http = aiohttp.ClientSession()
-        await self._load_sessions()
-        asyncio.create_task(self.poll_outgoing_loop())
+# --- Отправка сообщения с медиа из Django ---
+async def send_django_message(client, http, msg, chat_id):
+    """
+    msg: словарь сообщения из Django API
+    chat_id: ID Telegram чата
+    client: pyrogram.Client
+    http: aiohttp.ClientSession
+    """
+    text = msg.get("text", "")
+    media_list = msg.get("media", [])
 
-    async def stop(self):
-        for client in self.clients.values():
-            await client.stop()
-        if self.http:
-            await self.http.close()
-
-    async def _load_sessions(self):
-        p = Path(SESSIONS_DIR)
-        for fpath in glob.glob(str(p / "*.session")):
-            phone = session_phone_from_path(Path(fpath))
-            await self._start_client(fpath, phone)
-
-    async def _start_client(self, session_path, phone):
-        from pathlib import Path
-
-        session_file = Path(session_path)
-        session_name = session_file.stem  # убираем .session
-        print(session_name)
-        client = Client(
-            name=session_name,
-            api_id=API_ID,
-            api_hash=API_HASH,
-            workdir=str(session_file.parent)
-        )
-        await client.start()
-        print(f"[{phone}] client started, me={await client.get_me()}")
-        self.clients[phone] = client
-        self.session_map[phone] = client
-        # Вешаем handler входящих сообщений
-        client.add_handler(lambda c, m: asyncio.create_task(self.handle_incoming_message(phone, m)))
-        print(f"[{phone}] client started")
-
-    async def handle_incoming_message(self, phone, message: Message):
-        print(f"[{phone}] Incoming message from {message.chat.id}: {message.text}")
-        """Сохраняем входящее сообщение в Django"""
-        dialog_id = await self.get_or_create_dialog(phone, message.chat)
-        if not dialog_id:
-            return
-
-        sender = getattr(message.from_user, "first_name", "Unknown")
-        text = message.text or message.caption or ""
-        date_iso = message.date.astimezone(timezone.utc).isoformat()
-
-        # Получаем медиа
-        media_files = await self.extract_media(message)
-
-        payload = {
-            "dialog": dialog_id,
-            "sender_name": sender,
-            "text": text,
-            "date": date_iso,
-            "delivered": True,
-            "telegram_id": message.message_id
-        }
-
-        if media_files:
-            files_to_send = []
-            for m in media_files:
-                f = open(m['file_path'], "rb")
-                files_to_send.append(("files", (os.path.basename(m['file_path']), f)))
-            try:
-                async with self.http.post(DJANGO_BASE+MESSAGES_MEDIA_EP, data=payload, headers=django_headers(), files=files_to_send) as resp:
-                    if resp.status in (200,201):
-                        print(f"[{phone}] Incoming media message saved")
-            finally:
-                for _, (_, f) in files_to_send:
-                    f.close()
-        else:
-            async with self.http.post(DJANGO_BASE+MESSAGES_EP, json=payload, headers=django_headers()) as resp:
-                if resp.status in (200,201):
-                    print(f"[{phone}] Incoming message saved")
-
-    async def get_or_create_dialog(self, phone, chat):
-        """Находим или создаем диалог в Django"""
+    if media_list:
+        tmp_files = []
         try:
-            async with self.http.get(DJANGO_BASE+DIALOGS_EP, headers=django_headers()) as r:
-                dialogs = await r.json()
-                for dlg in dialogs:
-                    if dlg['account_phone'] == phone and str(dlg['chat_id']) == str(chat.id):
-                        return dlg['id']
-            # Создание нового диалога
-            payload = {"account_phone": phone, "chat_id": str(chat.id), "chat_title": chat.title or str(chat.id)}
-            files = None
-            if getattr(chat, "photo", None):
-                tmpfile = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                await Client.download_media(Client, chat.photo.big_file_id, file_name=tmpfile.name)
-                files = {"avatar": open(tmpfile.name,"rb")}
-            async with self.http.post(DJANGO_BASE+DIALOGS_EP, data=payload, headers=django_headers(), files=files) as r:
-                if r.status in (200,201):
-                    res = await r.json()
-                    return res.get("id")
-        except Exception as e:
-            print("get_or_create_dialog error:", e)
-        return None
-
-    async def extract_media(self, message):
-        """Извлекаем медиа файлы из сообщения"""
-        media_list = []
-        suffix = None
-        if message.photo:
-            suffix = ".jpg"
-        elif message.video:
-            suffix = ".mp4"
-        elif message.document:
-            suffix = os.path.splitext(message.document.file_name)[1] or ".dat"
-        else:
-            return media_list
-
-        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        await Client.download_media(Client, message, file_name=tmpfile.name)
-        media_list.append({"file_path": tmpfile.name, "media_type": "photo" if suffix==".jpg" else "document"})
-        return media_list
-
-    async def poll_outgoing_loop(self):
-        while True:
-            try:
-                await self.poll_outgoing_once()
-            except Exception as e:
-                print("poll_outgoing_loop error:", e)
-            await asyncio.sleep(POLL_INTERVAL)
-
-    async def poll_outgoing_once(self):
-        try:
-            async with self.http.get(DJANGO_BASE+MESSAGES_EP+"?delivered=false", headers=django_headers()) as r:
-                messages = await r.json()
-            for msg in messages:
-                dialog_id = msg['dialog']  # это int
-                # Получаем сам диалог
-                async with self.http.get(DJANGO_BASE + DIALOGS_EP, headers=django_headers()) as r:
-                    all_dialogs = await r.json()  # список всех диалогов
-                dlg = next((d for d in all_dialogs if d['id'] == dialog_id), None)
-
-                if dlg is None:
-                    # диалог не найден
+            for i, m in enumerate(media_list):
+                url = f"{DJANGO_BASE}{m['file']}"
+                local_path = await download_django_file(http, url)
+                if not local_path:
                     continue
-                # dlg = dlg_list[0]  # теперь это словарь
+                tmp_files.append(local_path)
+                caption = text if i == 0 else None
+                media_obj = get_input_media(local_path, caption=caption)
+
+                # Отправляем нужный тип медиа
+                if isinstance(media_obj, InputMediaPhoto):
+                    await client.send_photo(chat_id, local_path, caption=caption)
+                elif isinstance(media_obj, InputMediaVideo):
+                    await client.send_video(chat_id, local_path, caption=caption)
+                else:
+                    await client.send_document(chat_id, local_path, caption=caption)
+
+        finally:
+            # Удаляем временные файлы
+            for f in tmp_files:
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+
+    else:
+        # Если только текст
+        await client.send_message(chat_id, text)
+
+# ===================== Загрузка сессий =====================
+def load_sessions():
+    sessions = {}
+    for session_file in os.listdir(SESSIONS_DIR):
+        if session_file.endswith(".session"):
+            phone = os.path.splitext(session_file)[0]
+            client = Client(
+                os.path.join(SESSIONS_DIR, phone),
+                api_id=API_ID,
+                api_hash=API_HASH,
+                workdir=SESSIONS_DIR
+            )
+            sessions[phone] = client
+    return sessions
+
+# ===================== Функции =====================
+async def send_safe(client: Client, chat_id, text=None, media_files=None):
+    try:
+        chat = await client.get_chat(chat_id)
+    except Exception as e:
+        print(f"Ошибка get_chat({chat_id}): {e}")
+        return False
+
+    # Отправка медиа
+    if media_files:
+        for i, m in enumerate(media_files):
+            path = m["file"]
+            media_type = m.get("media_type")
+            caption = text if i == 0 else None
+            try:
+                if media_type == "photo":
+                    await client.send_photo(chat.id, path, caption=caption)
+                elif media_type == "video":
+                    await client.send_video(chat.id, path, caption=caption)
+                else:
+                    await client.send_document(chat.id, path, caption=caption)
+            except Exception as e:
+                print(f"Ошибка отправки медиа {path}: {e}")
+        text = None  # caption только для первого медиа
+
+    # Отправка текста
+    if text:
+        try:
+            await client.send_message(chat.id, text)
+        except Exception as e:
+            print(f"Ошибка отправки текста: {e}")
+            return False
+
+    return True
+
+async def message_exists_in_django(http, dialog_id, telegram_id):
+    """Проверка существования сообщения в Django по dialog_id + telegram_id"""
+    url = f"{DJANGO_BASE}{MESSAGES_EP}?dialog={dialog_id}&telegram_id={telegram_id}"
+    async with http.get(url, headers=django_headers()) as r:
+        data = await r.json()
+    return bool(data)
+import os
+import aiohttp
+import tempfile
+
+async def post_message_to_django(http: aiohttp.ClientSession, payload: dict, media_list: list):
+    """
+    Отправка сообщения в Django с поддержкой медиа через aiohttp.
+
+    payload: dict с полями сообщения (dialog, sender_name, text, date, telegram_id и т.д.)
+    media_list: список словарей {"file": ..., "media_type": ...}
+    """
+    form = aiohttp.FormData()
+
+    # --- Добавляем обычные поля ---
+    for key, value in payload.items():
+        form.add_field(key, str(value))
+
+    # --- Добавляем файлы ---
+    file_objects = []
+    try:
+        for m in media_list:
+            path = m["file"]
+            if not os.path.exists(path):
+                continue
+            f = open(path, "rb")
+            file_objects.append(f)
+            filename = os.path.basename(path)
+            media_type = m.get("media_type", "application/octet-stream")
+            form.add_field(
+                "files",
+                f,
+                filename=filename,
+                content_type=media_type
+            )
+
+        async with http.post(f"{DJANGO_BASE}/api/messages_media/", data=form) as resp:
+            if resp.status not in (200, 201):
+                text = await resp.text()
+                print(f"Ошибка создания сообщения: {resp.status} {text}")
+                return False
+            return await resp.json()
+    finally:
+        # Закрываем все открытые файлы
+        for f in file_objects:
+            f.close()
+
+# ===================== Worker =====================
+class TelegramWorker:
+    def __init__(self, session_map, http):
+        self.session_map = session_map
+        self.http = http
+        self.dialogs_map = {}  # phone -> {chat_id: chat_object}
+
+    # --------------------- Инициализация ---------------------
+    async def init_dialogs(self):
+        for phone, client in self.session_map.items():
+            try:
+                await client.start()
+                self.dialogs_map[phone] = {}
+                async for dialog in client.get_dialogs(limit=0):
+                    self.dialogs_map[phone][dialog.chat.id] = dialog.chat
+                print(f"[{phone}] Loaded {len(self.dialogs_map[phone])} dialogs")
+            except Exception as e:
+                print(f"[{phone}] Failed to load dialogs: {e}")
+
+    # --------------------- Django → Telegram ---------------------
+    async def poll_outgoing_once(self):
+        """
+        Берем все сообщения с delivered=false, отправляем их в Telegram,
+        и после успешной отправки удаляем из Django.
+        """
+        try:
+            # 1. Берём все недоставленные сообщения
+            async with self.http.get(f"{DJANGO_BASE}{MESSAGES_EP}?delivered=false", headers=django_headers()) as r:
+                messages = await r.json()
+
+            for msg in messages:
+                dialog_id = msg['dialog']
+
+                # 2. Получаем диалог из Django
+                async with self.http.get(f"{DJANGO_BASE}{DIALOGS_EP}", headers=django_headers()) as r:
+                    all_dialogs = await r.json()
+                dlg = next((d for d in all_dialogs if d['id'] == dialog_id), None)
+                if not dlg:
+                    continue
+
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
-                if int(chat_id) != 758861869:
-                    continue
-                print(dlg)
-                text = msg['text']
-                media = msg.get("media")
-                print(client)
                 client = self.session_map.get(phone)
                 if not client:
                     continue
 
-                if media:
-                    for m in media:
-                        ext = os.path.splitext(m['file_path'])[1]
-                        if ext in [".jpg",".png"]:
-                            await client.send_photo(chat_id, m['file_path'], caption=text)
-                        else:
-                            await client.send_document(chat_id, m['file_path'], caption=text)
-                else:
-                    await client.send_message(chat_id, text)
+                # 3. Отправляем сообщение
+                try:
+                    await send_django_message(client, self.http, msg, chat_id)
 
-                # Отметка доставленного
-                await self.http.delete(f"{DJANGO_BASE}{MESSAGES_EP}{msg['id']}/", json={"delivered": True}, headers=django_headers())
-                print(f"[{phone}] Sent message {msg['id']}")
+                    # 4. После успешной отправки — удаляем сообщение из Django
+                    await self.http.delete(f"{DJANGO_BASE}{MESSAGES_EP}{msg['id']}/", headers=django_headers())
+                    print(f"[{phone}] Message {msg['id']} sent and removed from Django.")
+
+                except Exception as e:
+                    print(f"[{phone}] Error sending message {msg['id']}: {e}")
+
         except Exception as e:
             print("poll_outgoing_once error:", e)
 
+    # --------------------- Telegram → Django ---------------------
+    async def fetch_messages_for_account(self, client, phone):
+        async for dialog in client.get_dialogs(limit=0):
+            chat = dialog.chat
+            chat_id = chat.id
+            chat_title = chat.title or chat.first_name or str(chat_id)
 
-# ======== Запуск ========
+            # Получаем dialog_id в Django
+            async with self.http.get(DJANGO_BASE + DIALOGS_EP, headers=django_headers()) as r:
+                all_dialogs = await r.json()
+            dlg = next((d for d in all_dialogs if d['chat_id'] == chat_id and d['account_phone'] == phone), None)
+            if not dlg:
+                payload = {"account_phone": phone, "chat_id": chat_id, "chat_title": chat_title}
+                async with self.http.post(DJANGO_BASE + DIALOGS_EP, data=payload) as r:
+                    dlg = await r.json()
+            dialog_id = dlg['id']
+
+            # История сообщений
+            async for msg in client.get_chat_history(chat_id, limit=100):
+                tg_id = msg.id
+                exists = await message_exists_in_django(self.http, dialog_id, tg_id)
+                if exists:
+                    continue
+
+                text = getattr(msg, "text", "") or ""
+                date_iso = msg.date.isoformat()
+
+                # Медиа
+                media_list = []
+                if msg.photo or msg.video or msg.document:
+                    suffix = ".jpg" if msg.photo else ".mp4" if msg.video else os.path.splitext(msg.document.file_name)[-1]
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
+                        path = await client.download_media(msg, file_name=tf.name)
+                        media_type = "photo" if msg.photo else "video" if msg.video else "document"
+                        media_list.append({"file": path, "media_type": media_type})
+
+                # Создаём сообщение
+                payload = {
+                    "dialog": dialog_id,
+                    "sender_name": getattr(msg.from_user, "first_name", "Unknown") if msg.from_user else "Unknown",
+                    "text": text,
+                    "date": date_iso,
+                    "telegram_id": tg_id,
+                    "delivered": True
+                }
+
+                files_to_send = []
+                for m in media_list:
+                    f = open(m["file"], "rb")
+                    files_to_send.append(("files", (os.path.basename(m["file"]), f)))
+
+                try:
+                    await post_message_to_django(self.http, payload, media_list)
+                finally:
+                    for _, (_, f) in files_to_send:
+                        f.close()
+
+    # --------------------- Главный цикл ---------------------
+    async def run_loop(self):
+        await self.init_dialogs()
+        print("All dialogs loaded, starting main loop...")
+
+        try:
+            while True:
+                # 1. Django → Telegram
+                await self.poll_outgoing_once()
+
+                # 2. Telegram → Django
+                for phone, client in self.session_map.items():
+                    await self.fetch_messages_for_account(client, phone)
+
+                await asyncio.sleep(LOOP_INTERVAL)
+
+        except KeyboardInterrupt:
+            print("Stopping worker...")
+        finally:
+            for client in self.session_map.values():
+                try:
+                    await client.stop()
+                except Exception:
+                    pass
+
+# ===================== Main =====================
 async def main():
-    worker = TelegramWorker()
-    await worker.start()
-    try:
-        while True:
-            await asyncio.sleep(3600)
-    except KeyboardInterrupt:
-        print("Stopping worker...")
-    finally:
-        await worker.stop()
+    session_map = load_sessions()
+    async with aiohttp.ClientSession() as http:
+        worker = TelegramWorker(session_map, http)
+        await worker.run_loop()
 
 if __name__ == "__main__":
     asyncio.run(main())
