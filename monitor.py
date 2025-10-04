@@ -191,6 +191,7 @@ class TelegramWorker:
                 chat_id = dlg['chat_id']
                 if int(chat_id) != 758861869:
                     continue
+                print(dlg)
                 text = msg['text']
                 media = msg.get("media")
                 client = self.session_map.get(phone)
