@@ -66,7 +66,17 @@ class TelegramWorker:
             await self._start_client(fpath, phone)
 
     async def _start_client(self, session_path, phone):
-        client = Client(session_path, api_id=API_ID, api_hash=API_HASH)
+        from pathlib import Path
+
+        session_file = Path(session_path)
+        session_name = session_file.stem  # убираем .session
+        print(session_name)
+        client = Client(
+            name=session_name,
+            api_id=API_ID,
+            api_hash=API_HASH,
+            workdir=str(session_file.parent)
+        )
         await client.start()
         print(f"[{phone}] client started, me={await client.get_me()}")
         self.clients[phone] = client
