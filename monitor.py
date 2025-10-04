@@ -331,7 +331,8 @@ class AccountMonitor:
                 chat_id = chat.id
                 chat_title = chat.title or (
                             (chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
-                dialog_id = self.create_dialog(self.phone, chat_id, chat)
+                dialog_id = self.create_dialog(self.phone, chat_id, chat_title, chat)
+
                 if not dialog_id:
                     continue
 
