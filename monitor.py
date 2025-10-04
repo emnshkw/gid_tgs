@@ -491,11 +491,13 @@ class AccountMonitor:
 
 
 # --- Главный цикл ---
+# --- Главный цикл ---
 async def run_loop():
     monitors = [AccountMonitor(phone) for phone in ACCOUNTS]
-    # старт всех клиентов
+
+    # Старт всех клиентов
     for m in monitors:
-        print(m.phone)
+        print(f"[{m.phone}] starting client...")
         try:
             await m.start()
         except Exception as e:
@@ -503,11 +505,18 @@ async def run_loop():
 
     try:
         while True:
-            tasks = [m.scan_once() for m in monitors]
-            # параллельно запускаем сканы
-            await asyncio.gather(*tasks)
+            # --- Полный проход всех аккаунтов ---
+            for m in monitors:
+                try:
+                    print(f"[{m.phone}] starting full scan...")
+                    await m.scan_once()
+                    print(f"[{m.phone}] full scan completed.")
+                except Exception as e:
+                    print(f"[{m.phone}] scan failed: {e}")
+
+            print("✅ Full scan for all accounts completed, sleeping 3s...")
             await asyncio.sleep(3)
-            print("В главном цикле...")
+
     except KeyboardInterrupt:
         print("Stopping monitors...")
     finally:
