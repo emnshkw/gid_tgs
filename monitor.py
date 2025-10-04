@@ -190,8 +190,6 @@ class TelegramWorker:
                 print(dlg)
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
-                phone = msg['dialog']['account_phone']
-                chat_id = msg['dialog']['chat_id']
                 text = msg['text']
                 media = msg.get("media")
                 client = self.session_map.get(phone)
