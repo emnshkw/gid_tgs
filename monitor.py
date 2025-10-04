@@ -179,6 +179,12 @@ class TelegramWorker:
             async with self.http.get(DJANGO_BASE+MESSAGES_EP+"?delivered=false", headers=django_headers()) as r:
                 messages = await r.json()
             for msg in messages:
+                dialog_id = msg['dialog']  # это int
+                # Получаем сам диалог
+                async with self.http.get(f"{DJANGO_BASE}{DIALOGS_EP}{dialog_id}/", headers=django_headers()) as r:
+                    dlg = await r.json()
+                phone = dlg['account_phone']
+                chat_id = dlg['chat_id']
                 phone = msg['dialog']['account_phone']
                 chat_id = msg['dialog']['chat_id']
                 text = msg['text']
