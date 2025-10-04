@@ -181,12 +181,14 @@ class TelegramWorker:
             for msg in messages:
                 dialog_id = msg['dialog']  # это int
                 # Получаем сам диалог
-                async with self.http.get(f"{DJANGO_BASE}{DIALOGS_EP}{dialog_id}/", headers=django_headers()) as r:
-                    dlg = await r.json()
-                    print(dlg)
-                    print(f"{DJANGO_BASE}{DIALOGS_EP}{dialog_id}/")
-                    quit()
+                async with self.http.get(DJANGO_BASE + DIALOGS_EP, headers=django_headers()) as r:
+                    all_dialogs = await r.json()  # список всех диалогов
+                dlg = next((d for d in all_dialogs if d['id'] == dialog_id), None)
 
+                if dlg is None:
+                    # диалог не найден
+                    continue
+                print(dlg)
                 # dlg = dlg_list[0]  # теперь это словарь
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
