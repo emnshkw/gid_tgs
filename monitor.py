@@ -187,9 +187,10 @@ class TelegramWorker:
                 if not dlg_list:
                     continue
                 dlg = dlg_list[0]  # теперь это словарь
-                print(dlg)
                 phone = dlg['account_phone']
                 chat_id = dlg['chat_id']
+                if int(chat_id) != 758861869:
+                    continue
                 text = msg['text']
                 media = msg.get("media")
                 client = self.session_map.get(phone)
