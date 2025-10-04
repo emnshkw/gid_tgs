@@ -331,7 +331,7 @@ class AccountMonitor:
                 chat_id = chat.id
                 chat_title = chat.title or (
                             (chat.first_name or "") + (" " + chat.last_name if chat.last_name else "")) or str(chat_id)
-                dialog_id = self.create_dialog(self.phone, chat_id, chat_title, chat)
+                dialog_id = self.create_dialog(self.phone, chat_id, chat)
                 if not dialog_id:
                     continue
 
@@ -391,7 +391,6 @@ class AccountMonitor:
                                     else:
                                         await self.client.send_document(chat_id, tmp_path, caption=msg['text'] or "")
                                 else:
-                                    # Несколько файлов → альбом
                                     tmp_files, photos, videos, documents = [], [], [], []
                                     for i, mf in enumerate(media_files):
                                         caption = msg['text'] if i == 0 else None
@@ -437,7 +436,6 @@ class AccountMonitor:
 
                     # --- История чата из Telegram ---
                     async for tg_msg in self.client.get_chat_history(chat_id, limit=0):
-                        # Пропускаем пустые системные сообщения
                         if not getattr(tg_msg, "text", None) and not (
                                 getattr(tg_msg, "media", None) or getattr(tg_msg, "photo", None) or getattr(tg_msg,
                                                                                                             "document",
@@ -462,17 +460,23 @@ class AccountMonitor:
                                                                                        None) or "Unknown"
 
                         text = getattr(tg_msg, "text", "") or ""
+                        if not text and (tg_msg.photo or tg_msg.video or tg_msg.document or tg_msg.voice):
+                            text = f"<media:{tg_msg.id}>"
 
-                        # Получаем медиа
                         files = await self.get_media_files(tg_msg)
                         files_to_up = [{"file_path": f['file_path'], "media_type": f['media_type']} for f in files]
 
-                        # Создаём сообщение в Django
-                        created = create_message(dialog_id, sender, text, date_iso, delivered=True,
-                                                 telegram_id=getattr(tg_msg, "id", None), media=files_to_up)
+                        created = create_message(
+                            dialog_id,
+                            sender,
+                            text,
+                            date_iso,
+                            delivered=True,
+                            telegram_id=getattr(tg_msg, "id", None),
+                            media=files_to_up
+                        )
                         if created:
                             print(f"[{self.phone}] created message in API dialog={dialog_id}, tg_id={tg_msg.id}")
-
 
                 except FloodWait as e:
                     wait = int(e.value) + 1
