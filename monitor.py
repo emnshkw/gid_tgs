@@ -518,6 +518,7 @@ async def run_loop():
             # параллельно запускаем сканы
             await asyncio.gather(*tasks)
             await asyncio.sleep(3)
+            print("В главном цикле...")
     except KeyboardInterrupt:
         print("Stopping monitors...")
     finally:
