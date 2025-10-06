@@ -87,10 +87,15 @@ WSGI_APPLICATION = 'tgserver.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'gid_db',
+        'USER': 'gid_admin',
+        'PASSWORD': 'gid_admin_password',
+        'HOST': 'localhost',  # или адрес сервера
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation
