@@ -25,13 +25,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLUTTER_WEB_APP = os.path.join(BASE_DIR, 'landing')
 
 
-def flutter_serve(request, path='index.html'):
+def flutter_serve(request, path=''):
+    if path == '' or path.endswith('/'):
+        path = 'index.html'
     return serve(request, path, document_root=FLUTTER_WEB_APP)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('ya_account/',YaAccountAPIView.as_view()),
     path('', include('tgapi.urls')),
+                  path('', flutter_serve),
                   re_path(r'^(?P<path>.*)$', flutter_serve),
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
