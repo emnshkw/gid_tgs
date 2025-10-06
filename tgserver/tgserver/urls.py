@@ -29,11 +29,12 @@ def flutter_serve(request, path='index.html'):
     return serve(request, path, document_root=FLUTTER_WEB_APP)
 
 urlpatterns = [
-    re_path(r'^(?P<path>.*)$', flutter_serve),
     path('admin/', admin.site.urls),
     path('ya_account/',YaAccountAPIView.as_view()),
     path('', include('tgapi.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+                  re_path(r'^(?P<path>.*)$', flutter_serve),
+
+              ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = 'Панель администрирования GID'
 admin.site.index_title = 'GID'
