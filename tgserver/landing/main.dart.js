@@ -30732,7 +30732,7 @@ aT3:function aT3(a){this.a=a},
 Vf(a){var s=0,r=A.r(t.z),q,p,o
 var $async$Vf=A.n(function(b,c){if(b===1)return A.o(c,r)
 while(true)switch(s){case 0:s=3
-return A.u($.b9G().Jk("GET",A.f3("https://gid-profit.ru/api/"+a,0,null),null),$async$Vf)
+return A.u($.b9G().Jk("GET",A.f3("http://127.0.0.1:8001/api/"+a,0,null),null),$async$Vf)
 case 3:p=c
 o=p.b
 if(o>=200&&o<300){q=B.eD.W3(0,A.b8B(A.b7d(p.e)).ek(0,p.w),null)
@@ -30784,13 +30784,13 @@ s=c.length===0?2:4
 break
 case 2:q=t.N
 s=5
-return A.u($.b9G().CZ("POST",A.f3("https://gid-profit.ru/api/messages/",0,null),null,A.a1(["dialog",B.e.l(a),"text",b,"sender_name","\u042f","date",l],q,q),null),$async$v0)
+return A.u($.b9G().CZ("POST",A.f3("http://127.0.0.1:8001/api/messages/",0,null),null,A.a1(["dialog",B.e.l(a),"text",b,"sender_name","\u042f","date",l],q,q),null),$async$v0)
 case 5:p=e
 q=p.b
 if(q!==201)throw A.d(A.bbj("Send text failed: "+q+" "+p.gDv(0)))
 s=3
 break
-case 4:o=A.bwY("POST",A.f3("https://gid-profit.ru/api/messages_media/",0,null))
+case 4:o=A.bwY("POST",A.f3("http://127.0.0.1:8001/api/messages_media/",0,null))
 q=o.x
 q.h(0,"dialog",B.e.l(a))
 q.h(0,"text",b)
@@ -112968,7 +112968,7 @@ A.ao_.prototype={
 $1(a){var s=0,r=A.r(t.fs),q,p=this,o,n
 var $async$$1=A.n(function(b,c){if(b===1)return A.o(c,r)
 while(true)switch(s){case 0:s=3
-return A.u($.b9G().Jk("GET",A.f3("https://gid-profit.ru/api/messages/?dialog="+p.a+"&from_gui=true",0,null),null),$async$$1)
+return A.u($.b9G().Jk("GET",A.f3("http://127.0.0.1:8001/api/messages/?dialog="+p.a+"&from_gui=true",0,null),null),$async$$1)
 case 3:n=c
 if(n.b===200){o=J.hv(B.eD.W3(0,A.b8B(A.b7d(n.e)).ek(0,n.w),null),new A.anZ(),t.ft)
 o=A.a6(o,o.$ti.j("aO.E"))
@@ -112992,7 +112992,7 @@ s.bd()
 s.f=new A.c1(null,null,t.zm)
 s.w.ad(0,new A.aVj(s))
 s.x.ad(0,new A.aVk(s))},
-aSH(a,b){var s=null,r=B.c.c4(a,"http")?a:"https://gid-profit.ru"+a,q=B.b.gN(b.split(".")),p=A.cS(8)
+aSH(a,b){var s=null,r=B.c.c4(a,"http")?a:"http://127.0.0.1:8001"+a,q=B.b.gN(b.split(".")),p=A.cS(8)
 return A.eZ(s,A.b_(s,A.cT(A.b([B.wt,B.ey,new A.nE(1,B.fV,A.bk(B.b.gN(b.split("/")),1,B.aQ,s,B.apA,s,s,s),s),B.ey,B.XT],t.p),B.w,s,B.H,B.b_),B.k,s,s,new A.cj(B.jW,s,s,p,s,s,B.a3),s,s,B.W7,B.ko,s,s,s),B.W,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new A.aUE(this,q.toLowerCase(),r,b),s,s,s,s,s,s,!1,B.aD)},
 av8(a){var s,r
 try{s=A.d4(new A.lw(a),0,null)
@@ -113045,7 +113045,7 @@ q.push(new A.nE(1,B.fV,A.b_(i,A.dw(r,m,i,B.H,B.I),B.k,i,i,new A.cj(h,i,i,new A.d
 return A.b_(g,A.cT(q,B.cN,i,s,B.I),B.k,i,i,i,i,i,B.os,i,i,i,i)},
 aSI(a){var s,r=null
 if(a.length===0)return B.rJ
-s=B.c.c4(a,"http")?a:"https://gid-profit.ru"+a
+s=B.c.c4(a,"http")?a:"http://127.0.0.1:8001"+a
 return A.eZ(r,A.awt(s,new A.aUG(),B.jG,new A.aUH(),150),B.W,!1,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,new A.aUI(this,a),r,r,r,r,r,r,!1,B.aD)},
 V9(){var s,r,q=this,p=null,o=t.p,n=A.b([],o),m=q.z.length
 if(m!==0)n.push(A.b_(p,A.cY(A.nW(new A.aV_(q),m,p,p,!1,B.bd),90,p),B.k,B.k_,p,p,p,p,p,B.kq,p,p,p))
@@ -113114,7 +113114,7 @@ s===$&&A.a()
 s.v(0,a)},
 $S:211}
 A.aV2.prototype={
-$1(a){var s=a.c,r="https://gid-profit.ru"+s,q=a.b
+$1(a){var s=a.c,r="http://127.0.0.1:8001"+s,q=a.b
 if(q==="photo")return this.a.aSI(r)
 else if(q==="video"){B.b.gN(s.split("/"))
 return new A.Or(r,null)}else if(q==="voice"||q==="audio")return new A.Gw(r,null)
@@ -113688,7 +113688,7 @@ s===$&&A.a()
 s.v(0,a)},
 $S:211}
 A.aWn.prototype={
-$1(a){var s=null,r=a.c,q="https://gid-profit.ru"+r,p=a.b
+$1(a){var s=null,r=a.c,q="http://127.0.0.1:8001"+r,p=a.b
 if(p==="photo")return A.eZ(s,A.awt(q,s,B.jG,s,150),B.W,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new A.aWl(this.a,q),s,s,s,s,s,s,!1,B.aD)
 else if(p==="video"){B.b.gN(r.split("/"))
 return new A.Oq(q,s)}else if(p==="voice"||p==="audio")return new A.Gv(q,s)
