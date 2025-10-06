@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.urls import re_path
 from django.urls import path, include
 from django.conf.urls.static import static,serve
 from django.conf import settings
@@ -23,12 +24,12 @@ from ya_accounts_info.views import YaAccountAPIView
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLUTTER_WEB_APP = os.path.join(BASE_DIR, 'landing')
 
-def flutter_redirect(request, resource):
-    return serve(request, resource, FLUTTER_WEB_APP)
 
+def flutter_serve(request, path='index.html'):
+    return serve(request, path, document_root=FLUTTER_WEB_APP)
 
 urlpatterns = [
-    path('', lambda r: flutter_redirect(r, 'index.html')),
+    re_path(r'^(?P<path>.*)$', flutter_serve),
     path('admin/', admin.site.urls),
     path('ya_account/',YaAccountAPIView.as_view()),
     path('', include('tgapi.urls')),
