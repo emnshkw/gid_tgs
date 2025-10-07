@@ -23,7 +23,7 @@ import os
 from ya_accounts_info.views import YaAccountAPIView
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLUTTER_WEB_APP = os.path.join(BASE_DIR, 'landing')
-
+from tgapi.views import DialogListCreateView, MessageListCreateView, MessageUpdateDeliveredView,MessageMediaListCreateView, ProfileViewSet,MessagesBatchView,ProfilesAPIView
 
 def flutter_serve(request, path=''):
     if path == '' or path.endswith('/'):
@@ -33,6 +33,14 @@ def flutter_serve(request, path=''):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('ya_account/',YaAccountAPIView.as_view()),
+    path('api/profiles',ProfilesAPIView.as_view()),
+    path('api/dialogs/', DialogListCreateView.as_view()),
+    path('api/dialogs/<int:pk>/', DialogListCreateView.as_view()),
+    path('api/messages/', MessageListCreateView.as_view()),
+    path('api/messages_media/', MessageMediaListCreateView.as_view()),
+    path('api/messages/<int:pk>/', MessageUpdateDeliveredView.as_view()),
+path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
+
     path('', include('tgapi.urls')),
                   path('', flutter_serve),
                   re_path(r'^(?P<path>.*)$', flutter_serve),
