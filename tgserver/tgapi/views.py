@@ -65,7 +65,7 @@ class ProfilesAPIView(APIView):
             try:
                 data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
             except:
-                return {"message":"Аккаунт не найден"}
+                return Response({"message": "Аккаунт не найден"})
             return Response(ProfileSelizalier(data).data)
         else:
             profiles = list(Profile.objects.all())
