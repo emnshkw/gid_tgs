@@ -189,7 +189,7 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
 
         message.save()
         try:
-            profile = Profile.objects.get(phone_number=message.dialog.account_phone)
+            profile = Profile.objects.get(phone_number=Dialog.objects.get(id=int(message.dialog)).account_phone)
             profile.last_message_date = parse_iso_datetime(str(message.date))
             profile.save()
         except:
