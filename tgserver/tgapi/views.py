@@ -1,3 +1,4 @@
+import requests
 from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -68,7 +69,7 @@ class ProfilesAPIView(APIView):
             return Response(ProfileSelizalier(data).data)
         else:
             profiles = list(Profile.objects.all())
-            dialogs = list(Dialog.objects.all())
+            dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             for i in range(len(profiles)):
                 for x in range(len(profiles)):
                     first = profiles[i]
@@ -77,10 +78,10 @@ class ProfilesAPIView(APIView):
                     second_dialogs_dates = []
                     for c in dialogs:
                         if c.account_phone:
-                            first_dialogs_dates.append(parse_iso_datetime(str(c.last_message.date)))
+                            first_dialogs_dates.append(parse_iso_datetime(str(c['last_message']['date'])))
                     for v in dialogs:
                         if v.account_phone:
-                            second_dialogs_dates.append(parse_iso_datetime(str(v.last_message.date)))
+                            second_dialogs_dates.append(parse_iso_datetime(str(v['last_message']['date'])))
                     first_dialogs_dates.sort()
                     second_dialogs_dates.sort()
                     if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
