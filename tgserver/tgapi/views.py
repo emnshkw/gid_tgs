@@ -65,7 +65,7 @@ class ProfilesAPIView(APIView):
                 data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
             except:
                 return {"message":"Аккаунт не найден"}
-            return ProfileSelizalier(data).data
+            return Response(ProfileSelizalier(data).data)
         else:
             profiles = list(Profile.objects.all())
             dialogs = list(Dialog.objects.all())
@@ -86,7 +86,7 @@ class ProfilesAPIView(APIView):
                     if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
                         profiles[i] = second
                         profiles[x] = first
-            return ProfileSelizalier(profiles,many=True).data
+            return Response(ProfileSelizalier(profiles,many=True).data)
 
 
     def post(self,request,*args,**kwargs):
@@ -96,7 +96,7 @@ class ProfilesAPIView(APIView):
         phone_number = request.data.get('phone_number')
         username = request.data.get('username')
         new = Profile.objects.create(phone_number=phone_number,username=username,session_name=phone_number)
-        return ProfileSelizalier(new).data
+        return Response(ProfileSelizalier(new).data)
 
 class DialogListCreateView(generics.ListCreateAPIView):
     queryset = Dialog.objects.all()
