@@ -64,9 +64,9 @@ class ProfilesAPIView(APIView):
         if pk:
             try:
                 data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
+                return Response(ProfileSelizalier(data).data)
             except:
                 return Response({"message": "Аккаунт не найден"})
-            return Response(ProfileSelizalier(data).data)
         else:
             profiles = list(Profile.objects.all())
             dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
