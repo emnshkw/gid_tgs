@@ -62,7 +62,20 @@ class ProfilesAPIView(APIView):
     def get(self, request,*args,**kwargs):
         pk = kwargs.get('pk',None)
         if pk:
-
+            profiles = list(Profile.objects.all())
+            dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
+            for profile in profiles:
+                for d in dialogs:
+                    if d['account_phone'] == profile.phone_number:
+                        try:
+                            if profile.last_message_date < parse_iso_datetime(d['last_message']['date']):
+                                profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
+                                profile.save()
+                                break
+                        except:
+                            profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
+                            profile.save()
+                            break
             try:
                 data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
                 return Response(data.data)
