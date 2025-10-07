@@ -76,7 +76,7 @@ class ProfilesAPIView(APIView):
             except:
                 return Response({"message": "Аккаунт не найден"})
         else:
-
+            return Response(ProfileSelizalier(Profile.objects.all(),many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
             #         if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
