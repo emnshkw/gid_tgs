@@ -2,7 +2,7 @@ from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from datetime import datetime
 from .models import Dialog, Message, Media, Profile
 from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
@@ -49,9 +49,54 @@ class MessagesBatchView(APIView):
                 print("❌ Ошибка batch-сохранения:", e)
 
         return Response({"saved": saved}, status=status.HTTP_201_CREATED)
+def parse_iso_datetime(dt_str: str) -> datetime:
+    """Преобразует строку ISO 8601 с 'Z' в объект datetime с timezone UTC."""
+    return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSelizalier
+class ProfilesAPIView(APIView):
+    """Принимает список сообщений для пакетного добавления"""
+
+    def get(self, request,*args,**kwargs):
+        pk = kwargs.get('pk',None)
+        if pk:
+            try:
+                data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
+            except:
+                return {"message":"Аккаунт не найден"}
+            return ProfileSelizalier(data).data
+        else:
+            profiles = list(Profile.objects.all())
+            dialogs = list(Dialog.objects.all())
+            for i in range(len(profiles)):
+                for x in range(profiles):
+                    first = profiles[i]
+                    second = profiles[x]
+                    first_dialogs_dates = []
+                    second_dialogs_dates = []
+                    for c in dialogs:
+                        if c.account_phone:
+                            first_dialogs_dates.append(parse_iso_datetime(str(c.last_message.date)))
+                    for v in dialogs:
+                        if v.account_phone:
+                            second_dialogs_dates.append(parse_iso_datetime(str(v.last_message.date)))
+                    first_dialogs_dates.sort()
+                    second_dialogs_dates.sort()
+                    if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
+                        profiles[i] = second
+                        profiles[x] = first
+            return ProfileSelizalier(profiles,many=True).data
+
+
+    def post(self,request,*args,**kwargs):
+        # "phone_number": phone,
+        # "username": username,
+        # "session_name": phone
+        phone_number = request.data.get('phone_number')
+        username = request.data.get('username')
+        new = Profile.objects.create(phone_number=phone_number,username=username,session_name=phone_number)
+        return ProfileSelizalier(new).data
 
 class DialogListCreateView(generics.ListCreateAPIView):
     queryset = Dialog.objects.all()

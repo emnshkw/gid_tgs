@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 router.register(r'api/profiles', ProfileViewSet)
 urlpatterns = [
+    path('api/profiles',ProfilesAPIView.as_view()),
     path('api/dialogs/', DialogListCreateView.as_view()),
     path('api/dialogs/<int:pk>/', DialogListCreateView.as_view()),
     path('api/messages/', MessageListCreateView.as_view()),
