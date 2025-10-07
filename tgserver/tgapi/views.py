@@ -70,7 +70,7 @@ class ProfilesAPIView(APIView):
             profiles = list(Profile.objects.all())
             dialogs = list(Dialog.objects.all())
             for i in range(len(profiles)):
-                for x in range(profiles):
+                for x in range(len(profiles)):
                     first = profiles[i]
                     second = profiles[x]
                     first_dialogs_dates = []
