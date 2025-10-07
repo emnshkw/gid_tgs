@@ -71,7 +71,7 @@ class ProfilesAPIView(APIView):
             profiles = list(Profile.objects.all())
             dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             for i in range(len(profiles)):
-                for x in range(len(profiles)):
+                for x in range(i+1,len(profiles)):
                     first = profiles[i]
                     second = profiles[x]
                     first_dialogs_dates = []
