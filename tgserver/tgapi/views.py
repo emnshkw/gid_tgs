@@ -85,6 +85,7 @@ class ProfilesAPIView(APIView):
                             second_dialogs_dates.append(parse_iso_datetime(str(v['last_message']['date'])))
                     first_dialogs_dates.sort()
                     second_dialogs_dates.sort()
+                    return Response({'msg':second_dialogs_dates})
                     if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
                         profiles[i] = second
                         profiles[x] = first
