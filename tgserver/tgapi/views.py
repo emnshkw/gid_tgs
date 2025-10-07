@@ -77,11 +77,11 @@ class ProfilesAPIView(APIView):
                     first_dialogs_dates = []
                     second_dialogs_dates = []
                     for c in dialogs:
-                        if c['account_phone']:
+                        if c['account_phone'] and c['last_message']:
                             print(c)
                             first_dialogs_dates.append(parse_iso_datetime(str(c['last_message']['date'])))
                     for v in dialogs:
-                        if v['account_phone']:
+                        if v['account_phone'] and v['last_message']:
                             second_dialogs_dates.append(parse_iso_datetime(str(v['last_message']['date'])))
                     first_dialogs_dates.sort()
                     second_dialogs_dates.sort()
