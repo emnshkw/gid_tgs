@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from datetime import datetime
+from datetime import datetime, timezone
 from .models import Dialog, Message, Media, Profile
 from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
@@ -77,10 +77,10 @@ class ProfilesAPIView(APIView):
                     first_dialogs_dates = []
                     second_dialogs_dates = []
                     for c in dialogs:
-                        if c.account_phone:
+                        if c['account_phone']:
                             first_dialogs_dates.append(parse_iso_datetime(str(c['last_message']['date'])))
                     for v in dialogs:
-                        if v.account_phone:
+                        if v['account_phone']:
                             second_dialogs_dates.append(parse_iso_datetime(str(v['last_message']['date'])))
                     first_dialogs_dates.sort()
                     second_dialogs_dates.sort()
