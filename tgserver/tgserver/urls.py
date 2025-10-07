@@ -33,7 +33,8 @@ def flutter_serve(request, path=''):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('ya_account/',YaAccountAPIView.as_view()),
-    path('api/profiles',ProfilesAPIView.as_view()),
+    path('api/profiles/',ProfilesAPIView.as_view()),
+    path('api/profiles/<int:pk>/',ProfilesAPIView.as_view()),
     path('api/dialogs/', DialogListCreateView.as_view()),
     path('api/dialogs/<int:pk>/', DialogListCreateView.as_view()),
     path('api/messages/', MessageListCreateView.as_view()),
