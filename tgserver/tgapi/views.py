@@ -62,28 +62,21 @@ class ProfilesAPIView(APIView):
     def get(self, request,*args,**kwargs):
         pk = kwargs.get('pk',None)
         if pk:
+            profiles = list(Profile.objects.all())
+            dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
+            for profile in profiles:
+                for d in dialogs:
+                    if d['account_phone'] == profile.phone_number:
+                        profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
+                        profile.save()
+                        break
             try:
                 data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
                 return Response(data.data)
             except:
                 return Response({"message": "Аккаунт не найден"})
         else:
-            profiles = list(Profile.objects.all())
 
-            return Response(ProfileSelizalier(profiles, many=True).data)
-            # dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
-            # for i in range(len(profiles)):
-            #     for x in range(i+1,len(profiles)):
-            #         first = profiles[i]
-            #         second = profiles[x]
-            #         first_dialogs_dates = []
-            #         second_dialogs_dates = []
-            #         for c in dialogs:
-            #             if c['account_phone'] and c['account_phone'] == first.phone_number and c['last_message']:
-            #                 first_dialogs_dates.append(parse_iso_datetime(str(c['last_message']['date'])))
-            #         for v in dialogs:
-            #             if v['account_phone'] and v['account_phone'] == second.phone_number and v['last_message']:
-            #                 second_dialogs_dates.append(parse_iso_datetime(str(v['last_message']['date'])))
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
             #         if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
@@ -189,6 +182,12 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
             message.media.add(media)
 
         message.save()
+        try:
+            profile = Profile.objects.get(phone_number=message.dialog.account_phone)
+            profile.last_message_date = parse_iso_datetime(message.date)
+            profile.save()
+        except:
+            pass
         return Response(self.get_serializer(message).data, status=status.HTTP_201_CREATED)
 
 class MessageUpdateDeliveredView(generics.UpdateAPIView):
