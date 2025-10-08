@@ -38,6 +38,7 @@ class MessagesBatchView(APIView):
         for msg_data in messages:
             try:
                 print(1)
+                print(msg_data)
                 dialog_id = msg_data.get("dialog")
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
