@@ -83,6 +83,7 @@ class ProfilesAPIView(APIView):
                 return Response({"message": "Аккаунт не найден"})
         else:
             profiles = list(Profile.objects.all().order_by('last_message_date'))[::-1]
+            profiles = ProfileSelizalier(profiles,many=True).data
             dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             for i in range(len(profiles)):
                 profile = profiles[i]
@@ -93,7 +94,7 @@ class ProfilesAPIView(APIView):
                         unread_count += int(dialog['unread_count'])
                 profile['unread_count'] = unread_count
                 profiles[i] = profile
-            return Response(ProfileSelizalier(profiles,many=True).data)
+            return Response(profiles)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
             #         if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
