@@ -32,8 +32,8 @@ def flutter_serve(request, path=''):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-                  path('dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
-                  path('dialogs/<int:dialog_id>/last_message/update/', update_last_message,
+                  path('api/dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
+                  path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,
                        name='dialog-update-last-message'),
     path('ya_account/',YaAccountAPIView.as_view()),
     path('api/profiles/',ProfilesAPIView.as_view()),
