@@ -28,6 +28,7 @@ def update_last_message(request, dialog_id):
         return Response({"status": "ok"})
     except Dialog.DoesNotExist:
         return Response({"status": "error"}, status=404)
+import json
 class MessagesBatchView(APIView):
     """Принимает список сообщений для пакетного добавления"""
 
@@ -36,6 +37,7 @@ class MessagesBatchView(APIView):
         saved = []
         print(messages)
         print(type(messages))
+        print(json.loads(messages))
         for msg_data in messages:
             try:
                 print(1)
