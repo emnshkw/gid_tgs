@@ -37,19 +37,23 @@ class MessagesBatchView(APIView):
 
         for msg_data in messages:
             try:
+                print(1)
                 dialog_id = msg_data.get("dialog")
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
                 telegram_id = msg_data.get("telegram_id")
+                print(2)
 
                 # Пропускаем, если уже есть
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
                     continue
 
                 media_instances = []
+                print(3)
                 for m in msg_data.get("media", []):
                     media_file = m.get("file")
                     media_type = m.get("media_type", "photo")
+                    print(4)
                     if media_file:
                         media_obj = Media.objects.create(file=media_file, media_type=media_type)
                         media_instances.append(media_obj)
