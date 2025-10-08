@@ -37,13 +37,10 @@ class MessagesBatchView(APIView):
         saved = []
         for msg_data in messages:
             try:
-                print(1)
-                print(msg_data)
                 dialog_id = msg_data.get("dialog")
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
                 telegram_id = msg_data.get("telegram_id")
-                print(2)
 
                 # Пропускаем, если уже есть
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
