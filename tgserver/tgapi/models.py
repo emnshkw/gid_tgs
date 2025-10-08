@@ -52,6 +52,7 @@ class Profile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     username = models.CharField(max_length=255, blank=True, null=True)
     last_message_date = models.DateTimeField(blank=True,null=True)
+    unread_count = models.IntegerField(default=0)
 
     def __str__(self):
         return f"Подключенный аккаунт - {self.phone_number} ({self.session_name})"

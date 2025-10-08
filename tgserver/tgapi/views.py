@@ -83,18 +83,18 @@ class ProfilesAPIView(APIView):
                 return Response({"message": "Аккаунт не найден"})
         else:
             profiles = list(Profile.objects.all().order_by('last_message_date'))[::-1]
-            profiles = ProfileSelizalier(profiles,many=True).data
+
             dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             for i in range(len(profiles)):
                 profile = profiles[i]
-                profile_phone = profile['phone_number']
+                profile_phone = profile.phone_number
                 unread_count = 0
                 for dialog in dialogs:
                     if dialog['account_phone'] == profile_phone:
                         unread_count += int(dialog['unread_count'])
-                profile['unread_count'] = unread_count
-                profiles[i] = profile
-            return Response(profiles)
+                profile.unread_count = unread_count
+                profile.save()
+            return Response(ProfileSelizalier(profiles,many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
             #         if second_dialogs_dates[-1] > first_dialogs_dates[-1]:
@@ -167,7 +167,10 @@ class MessageListCreateView(generics.ListCreateAPIView):
             telegram_id = int(telegram_id.replace("'", '').replace('/', ''))
             messages = messages.filter(telegram_id=telegram_id)
         if dialog_id is not None and telegram_id is None and from_gui is not None:
-            Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False).update(is_read=True)
+            msgs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False)
+            profile = Profile.objects.get(phone_number=Dialog.objects.get(id=dialog_id).account_phone)
+            profile.unread_count -= len(msgs)
+            msgs.update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class MessageMediaListCreateView(generics.ListCreateAPIView):
@@ -202,8 +205,9 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         message.save()
         try:
             profile = Profile.objects.get(phone_number=message.dialog.account_phone)
-
             profile.last_message_date = message.date
+            if message.sender_name not in str(profile):
+                profile.unread_count += 1
             profile.save()
         except:
             pass
