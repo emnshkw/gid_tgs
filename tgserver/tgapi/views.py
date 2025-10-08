@@ -1,5 +1,6 @@
 import requests
 from rest_framework import generics
+from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,7 +10,24 @@ from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
+@api_view(['GET'])
+def last_message(request, dialog_id):
+    try:
+        dlg = Dialog.objects.get(id=dialog_id)
+        return Response({"last_message_id": dlg.last_message_id})
+    except Dialog.DoesNotExist:
+        return Response({"last_message_id": 0})
 
+@api_view(['POST'])
+def update_last_message(request, dialog_id):
+    last_id = request.data.get("last_message_id", 0)
+    try:
+        dlg = Dialog.objects.get(id=dialog_id)
+        dlg.last_message_id = last_id
+        dlg.save()
+        return Response({"status": "ok"})
+    except Dialog.DoesNotExist:
+        return Response({"status": "error"}, status=404)
 class MessagesBatchView(APIView):
     """Принимает список сообщений для пакетного добавления"""
 

@@ -16,6 +16,7 @@ class Dialog(models.Model):
     chat_id = models.BigIntegerField()
     avatar = models.ForeignKey(Media, null=True, blank=True, on_delete=models.SET_NULL)
     chat_title = models.CharField(max_length=255)
+    last_message_id = models.BigIntegerField(default=0)
 
     class Meta:
         verbose_name = 'Диалог'
