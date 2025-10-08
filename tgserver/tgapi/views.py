@@ -34,7 +34,8 @@ class MessagesBatchView(APIView):
     def post(self, request):
         messages = request.data.get("messages", [])
         saved = []
-
+        print(messages)
+        print(type(messages))
         for msg_data in messages:
             try:
                 print(1)
