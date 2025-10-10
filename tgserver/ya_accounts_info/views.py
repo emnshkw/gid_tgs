@@ -75,7 +75,7 @@ class YaAccountAPIView(APIView):
                     del_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
                     cur_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
                 except Exception as e:
-                    return Response({"status":'success','message':f"Ошибка при удалении! {e}"})
+                    return Response({"status":'success','message':f"Ошибка при удалении! {e}\ndel_cats - {del_cats}\ncur_cats - {cur_cats}\ndeleted_cat - {deleted_cat}"})
             account.categories = '\n'.join(list(set(cur_cats)))
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(list(set(del_cats)))
