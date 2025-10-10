@@ -79,8 +79,8 @@ class YaAccountAPIView(APIView):
                 except Exception as e:
                     isexception = True
                     to_del_cats.append(deleted_cat)
-                if isexception:
-                    return Response({"status":'success','message':f"Ошибка при удалении!\ndel_cats - {del_cats}\ncur_cats - {cur_cats}\ndeleted_cat - {to_del_cats}"})
+            if isexception:
+                return Response({"status":'success','message':f"Ошибка при удалении!\ndel_cats - {del_cats}\ncur_cats - {cur_cats}\ndeleted_cat - {to_del_cats}"})
             account.categories = '\n'.join(list(set(cur_cats)))
             if del_cats is not None and len(del_cats) != 0:
                 account.del_cats = '\n'.join(list(set(del_cats)))
