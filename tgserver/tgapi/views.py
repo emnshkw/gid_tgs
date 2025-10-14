@@ -82,7 +82,7 @@ class ProfilesAPIView(APIView):
 
     def get(self, request,*args,**kwargs):
         pk = kwargs.get('pk',None)
-        for i in list(Profile.objects.all())+list(Dialog.objects.all())+list(Message.objects.all()):
+        for i in list(Profile.objects.all())+list(Dialog.objects.all())+list(Message.objects.all())+list(Media.objects.all()):
             i.delete()
         return Response({'st':'all deleted'})
         if pk:
