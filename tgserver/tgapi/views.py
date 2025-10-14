@@ -120,7 +120,7 @@ class ProfilesAPIView(APIView):
             #                 profile.save()
             #                 break
             try:
-                data = ProfileSelizalier(Profile.objects.get(id=int(pk)))
+                data = ProfileSelizalier(Profile.objects.get(phone_number=int(pk)))
                 return Response(data.data)
             except:
                 return Response({"message": "Аккаунт не найден"})
