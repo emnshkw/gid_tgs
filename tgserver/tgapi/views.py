@@ -9,6 +9,8 @@ from .models import Dialog, Message, Media, Profile
 from .serializers import DialogSerializer, MessageSerializer, ProfileSelizalier
 from rest_framework import status, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
+from django.core.files import File
+import os
 from rest_framework.filters import OrderingFilter
 @api_view(['GET'])
 def last_message(request, dialog_id):
@@ -30,47 +32,65 @@ def update_last_message(request, dialog_id):
         return Response({"status": "error"}, status=404)
 import json
 class MessagesBatchView(APIView):
-    """Принимает список сообщений для пакетного добавления"""
+    """Принимает JSON с путями к локальным файлам и создаёт сообщения"""
 
     def post(self, request):
-        messages = request.data.get("messages", [])
-        saved = []
-        for msg_data in messages:
-            try:
-                dialog_id = msg_data.get("dialog")
-                text = msg_data.get("text", "")
-                sender_name = msg_data.get("sender_name", "Unknown")
-                telegram_id = msg_data.get("telegram_id")
+        try:
+            messages = request.data.get("messages", [])
+            if not isinstance(messages, list):
+                return Response({"error": "messages must be a list"}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Пропускаем, если уже есть
-                if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
+            saved = []
+
+            for msg_data in messages:
+                dialog_id = msg_data.get("dialog")
+                if not Dialog.objects.filter(id=dialog_id).exists():
+                    print(f"❌ Нет диалога {dialog_id}, пропускаем сообщение")
                     continue
 
-                media_instances = []
-                print(3)
-                for m in msg_data.get("media", []):
-                    media_file = m.get("file")
-                    media_type = m.get("media_type", "photo")
-                    print(4)
-                    if media_file:
-                        media_obj = Media.objects.create(file=media_file, media_type=media_type)
-                        media_instances.append(media_obj)
+                telegram_id = msg_data.get("telegram_id")
+                if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
+                    continue  # уже есть
+
+                text = msg_data.get("text", "")
+                sender_name = msg_data.get("sender_name", "Unknown")
+                date_str = msg_data.get("date")
 
                 msg = Message.objects.create(
                     dialog_id=dialog_id,
                     telegram_id=telegram_id,
                     sender_name=sender_name,
-                    date=parse_iso_datetime(msg_data.get('date')+'Z'),
                     text=text,
+                    date=parse_iso_datetime(date_str + "Z"),
                     delivered=True,
                 )
-                msg.media.set(media_instances)
+
+                media_instances = []
+                for m in msg_data.get("media", []):
+                    file_path = m.get("file")
+                    media_type = m.get("media_type", "photo")
+
+                    if not file_path or not os.path.exists(file_path):
+                        print(f"⚠️ Файл не найден: {file_path}")
+                        continue
+
+                    # Создаём Media с реальным файлом
+                    with open(file_path, "rb") as f:
+                        file_name = os.path.basename(file_path)
+                        media_obj = Media(media_type=media_type)
+                        media_obj.file.save(file_name, File(f), save=True)
+                        media_instances.append(media_obj)
+
+                if media_instances:
+                    msg.media.set(media_instances)
+
                 saved.append(msg.id)
 
-            except Exception as e:
-                print("❌ Ошибка batch-сохранения:", e)
+            return Response({"saved": saved}, status=status.HTTP_201_CREATED)
 
-        return Response({"saved": saved}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print("❌ Ошибка batch-загрузки:", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 def parse_iso_datetime(dt_str: str) -> datetime:
     """Преобразует строку ISO 8601 с 'Z' в объект datetime с timezone UTC."""
     return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
