@@ -105,6 +105,9 @@ class ProfilesAPIView(APIView):
     def get(self, request,*args,**kwargs):
         pk = kwargs.get('pk',None)
         if pk:
+            for i in list(Profile.objects.all())+list(Media.objects.all())+list(Dialog.objects.all())+list(Message.objects.all()):
+                i.delete()
+            return Response({'status':'krutyak'})
             # profiles = list(Profile.objects.all())
             # dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             # for profile in profiles:
