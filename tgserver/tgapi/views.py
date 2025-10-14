@@ -55,15 +55,17 @@ class MessagesBatchView(APIView):
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
                 date_str = msg_data.get("date")
-
-                msg = Message.objects.create(
-                    dialog_id=dialog_id,
-                    telegram_id=telegram_id,
-                    sender_name=sender_name,
-                    text=text,
-                    date=parse_iso_datetime(date_str + "Z"),
-                    delivered=True,
-                )
+                try:
+                    msg = Message.objects.create(
+                        dialog_id=dialog_id,
+                        telegram_id=telegram_id,
+                        sender_name=sender_name,
+                        text=text,
+                        date=parse_iso_datetime(date_str + "Z"),
+                        delivered=True,
+                    )
+                except:
+                    continue
 
                 media_instances = []
                 for m in msg_data.get("media", []):
