@@ -9,9 +9,7 @@ class YaAccountAPIView(APIView):
         for account in need_update_accounts:
             name = account.name.split(' ')
             if len(name) == 3:
-                name = ' '.join([name[0],name[1]])
-                account.name = name
-                account.save()
+                account.delete()
         # for account in need_update_accounts:
         #     account.categories = account.categories.replace('Электромонтажные работы - срочный выезд','Электромонтажные работы — срочный выезд').replace('Сантехнические работы и отопление - аварийный выезд','Сантехнические работы и отопление — аварийный выезд')
         #     account.new_cats = account.new_cats.replace('Электромонтажные работы - срочный выезд','').replace('Электромонтажные работы — срочный выезд','').replace('Сантехнические работы и отопление - аварийный выезд','').replace('Сантехнические работы и отопление — аварийный выезд','')
