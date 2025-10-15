@@ -46,8 +46,8 @@ urlpatterns = [
 path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
 
     path('', include('tgapi.urls')),
-                  # path('', flutter_serve),
-                  # re_path(r'^(?P<path>.*)$', flutter_serve),
+                  path('', flutter_serve),
+                  re_path(r'^(?P<path>.*)$', flutter_serve),
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
