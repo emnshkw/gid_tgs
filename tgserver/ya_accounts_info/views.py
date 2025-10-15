@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from .models import YaAccountModel
 class YaAccountAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        need_update_accounts = YaAccountModel.objects.all()
+        need_update_accounts = list(YaAccountModel.objects.all())
         for account in need_update_accounts:
             name = account.name.split(' ')
             if len(name) == 3:
