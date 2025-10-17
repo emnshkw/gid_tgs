@@ -47,7 +47,7 @@ urlpatterns = [
     path('api/messages/<int:pk>/', MessageUpdateDeliveredView.as_view()),
 path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
 
-                  path('pyrogram_api/', include('pyrogram_api.urls')),
+                  # path('pyrogram_api/', include('pyrogram_api.urls')),
     path('', include('tgapi.urls')),
                   path('', flutter_serve),
                   re_path(r'^(?P<path>.*)$', flutter_serve),
