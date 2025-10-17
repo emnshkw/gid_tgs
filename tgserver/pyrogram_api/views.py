@@ -9,14 +9,11 @@ from rest_framework.views import APIView
 from rest_framework import status
 from .serializers import StartAuthSerializer, CompleteAuthSerializer
 
-# Пул потоков (Pyrogram любит отдельный поток)
-executor = ThreadPoolExecutor(max_workers=4)
 
-# Хранилище активных сессий
+executor = ThreadPoolExecutor(max_workers=4)
 active_sessions = {}
 
 def run_in_thread(func, *args, **kwargs):
-    """Запускает асинхронную функцию Pyrogram в отдельном event loop в потоке."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(func(*args, **kwargs))
@@ -34,12 +31,13 @@ class StartAuthView(APIView):
         session_path = serializer.validated_data["session_path"]
 
         async def send_code():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
-                sent = await app.send_code(phone)
-                return sent.phone_code_hash
+            app = Client(session_path, api_id=API_ID, api_hash=API_HASH, phone_number=phone)
+            await app.connect()
+            sent = await app.send_code(phone)
+            await app.disconnect()
+            return sent.phone_code_hash
 
         try:
-            # Выполняем асинхронно в отдельном потоке
             phone_code_hash = executor.submit(run_in_thread, send_code).result()
             active_sessions[phone] = {"session_path": session_path, "phone_code_hash": phone_code_hash}
             return Response({"status": "code_sent"})
@@ -66,8 +64,10 @@ class CompleteAuthView(APIView):
         phone_code_hash = session_info["phone_code_hash"]
 
         async def complete_login():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
-                await app.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
+            app = Client(session_path, api_id=API_ID, api_hash=API_HASH, phone_number=phone)
+            await app.connect()
+            await app.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
+            await app.disconnect()
 
         try:
             executor.submit(run_in_thread, complete_login).result()
