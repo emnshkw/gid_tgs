@@ -13,7 +13,7 @@ from .serializers import StartAuthSerializer, CompleteAuthSerializer
 
 executor = ThreadPoolExecutor(max_workers=4)
 
-# Хранилище данных для текущих логинов (не живые клиенты)
+# Хранилище данных для текущих логинов (только phone_code_hash и session_path)
 active_sessions = {}
 
 
@@ -25,7 +25,7 @@ def run_in_thread(coro_func, *args, **kwargs):
 
 
 class StartAuthView(APIView):
-    """Отправка кода подтверждения"""
+    """Отправка кода подтверждения без интерактивного ввода"""
 
     def post(self, request):
         serializer = StartAuthSerializer(data=request.data)
@@ -38,14 +38,14 @@ class StartAuthView(APIView):
                 session_path,
                 api_id=API_ID,
                 api_hash=API_HASH,
-                phone_number=phone
+                phone_number=phone  # ✅ Обязательно указываем телефон
             ) as app:
                 sent = await app.send_code(phone)
                 return sent.phone_code_hash
 
         try:
             phone_code_hash = executor.submit(run_in_thread, send_code).result()
-            # сохраняем только hash и время отправки
+            # Сохраняем hash и время отправки, живой клиент не храним
             active_sessions[phone] = {
                 "phone_code_hash": phone_code_hash,
                 "session_path": session_path,
@@ -57,7 +57,7 @@ class StartAuthView(APIView):
 
 
 class CompleteAuthView(APIView):
-    """Подтверждение кода"""
+    """Подтверждение кода без интерактивного ввода"""
 
     def post(self, request):
         serializer = CompleteAuthSerializer(data=request.data)
@@ -82,7 +82,7 @@ class CompleteAuthView(APIView):
                 session_path,
                 api_id=API_ID,
                 api_hash=API_HASH,
-                phone_number=phone
+                phone_number=phone  # ✅ Указываем тот же номер
             ) as app:
                 await app.sign_in(
                     phone_number=phone,
