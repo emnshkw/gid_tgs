@@ -7,37 +7,28 @@ from pyrogram.errors import SessionPasswordNeeded
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .serializers import StartAuthSerializer, CompleteAuthSerializer
 
-# API_ID = 123456
-# API_HASH = "your_api_hash_here"
+API_ID = 123456
+API_HASH = "your_api_hash_here"
 
 executor = ThreadPoolExecutor(max_workers=4)
 active_sessions = {}
 
+
 def run_in_thread(coro_func, *args, **kwargs):
-    """Запуск корутины Pyrogram в отдельном event loop в отдельном потоке"""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro_func(*args, **kwargs))
 
 
 class StartAuthView(APIView):
-    """
-    POST /api/start/
-    {
-      "phone": "+79998887766",
-      "session_path": "sessions/user1.session"
-    }
-    """
     def post(self, request):
-        serializer = StartAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        phone = serializer.validated_data["phone"]
-        session_path = serializer.validated_data["session_path"]
+        phone = request.data.get("phone")
+        session_path = request.data.get("session_path")
+        if not phone or not session_path:
+            return Response({"error": "phone and session_path required"}, status=400)
 
         async def send_code():
-            # Указываем phone_number прямо здесь, чтобы Pyrogram не спрашивал его в консоли
             app = Client(
                 session_path,
                 api_id=API_ID,
@@ -46,49 +37,35 @@ class StartAuthView(APIView):
             )
             await app.connect()
             sent = await app.send_code(phone)
-            await app.disconnect()
+            # сохраняем сам клиент в память!
+            active_sessions[phone] = {
+                "client": app,
+                "phone_code_hash": sent.phone_code_hash,
+                "session_path": session_path
+            }
             return sent.phone_code_hash
 
         try:
             phone_code_hash = executor.submit(run_in_thread, send_code).result()
-            active_sessions[phone] = {
-                "phone_code_hash": phone_code_hash,
-                "session_path": session_path
-            }
             return Response({"status": "code_sent"})
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=400)
 
 
 class CompleteAuthView(APIView):
-    """
-    POST /api/complete/
-    {
-      "phone": "+79998887766",
-      "code": "12345",
-      "session_path": "sessions/user1.session"
-    }
-    """
     def post(self, request):
-        serializer = CompleteAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        phone = serializer.validated_data["phone"]
-        code = serializer.validated_data["code"]
+        phone = request.data.get("phone")
+        code = request.data.get("code")
+        if not phone or not code:
+            return Response({"error": "phone and code required"}, status=400)
 
         if phone not in active_sessions:
-            return Response({"error": "Session not found"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "no active session"}, status=400)
 
-        session_path = active_sessions[phone]["session_path"]
         phone_code_hash = active_sessions[phone]["phone_code_hash"]
+        app = active_sessions[phone]["client"]
 
         async def complete_login():
-            app = Client(
-                session_path,
-                api_id=API_ID,
-                api_hash=API_HASH,
-                phone_number=phone
-            )
-            await app.connect()
             await app.sign_in(
                 phone_number=phone,
                 phone_code_hash=phone_code_hash,
@@ -100,13 +77,8 @@ class CompleteAuthView(APIView):
         try:
             executor.submit(run_in_thread, complete_login).result()
             del active_sessions[phone]
-            return Response({
-                "status": "authorized",
-                "session_saved": session_path
-            })
+            return Response({"status": "authorized"})
         except SessionPasswordNeeded:
-            return Response({
-                "error": "2FA password required"
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "2FA password required"}, status=401)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=400)
