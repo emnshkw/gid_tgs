@@ -20,10 +20,6 @@ def run_in_thread(func, *args, **kwargs):
 
 
 class StartAuthView(APIView):
-    """
-    POST /api/start/
-    { "phone": "+79998887766", "session_path": "sessions/user1.session" }
-    """
     def post(self, request):
         serializer = StartAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -34,22 +30,23 @@ class StartAuthView(APIView):
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH, phone_number=phone)
             await app.connect()
             sent = await app.send_code(phone)
-            await app.disconnect()
-            return sent.phone_code_hash
+            return app, sent.phone_code_hash
 
         try:
-            phone_code_hash = executor.submit(run_in_thread, send_code).result()
-            active_sessions[phone] = {"session_path": session_path, "phone_code_hash": phone_code_hash}
+            # Получаем клиент и hash
+            client, phone_code_hash = executor.submit(run_in_thread, send_code).result()
+            # Сохраняем активный клиент (НЕ закрываем!)
+            active_sessions[phone] = {
+                "client": client,
+                "phone_code_hash": phone_code_hash,
+                "session_path": session_path,
+            }
             return Response({"status": "code_sent"})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CompleteAuthView(APIView):
-    """
-    POST /api/complete/
-    { "phone": "+79998887766", "code": "12345", "session_path": "sessions/user1.session" }
-    """
     def post(self, request):
         serializer = CompleteAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -60,14 +57,13 @@ class CompleteAuthView(APIView):
             return Response({"error": "Session not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         session_info = active_sessions[phone]
-        session_path = session_info["session_path"]
+        client: Client = session_info["client"]
         phone_code_hash = session_info["phone_code_hash"]
+        session_path = session_info["session_path"]
 
         async def complete_login():
-            app = Client(session_path, api_id=API_ID, api_hash=API_HASH, phone_number=phone)
-            await app.connect()
-            await app.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
-            await app.disconnect()
+            await client.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
+            await client.disconnect()
 
         try:
             executor.submit(run_in_thread, complete_login).result()
