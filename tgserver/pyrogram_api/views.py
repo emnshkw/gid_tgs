@@ -13,10 +13,11 @@ from .serializers import StartAuthSerializer, CompleteAuthSerializer
 executor = ThreadPoolExecutor(max_workers=4)
 active_sessions = {}
 
-def run_in_thread(func, *args, **kwargs):
+def run_in_thread(coro_func, *args, **kwargs):
+    """Запускает корутину Pyrogram в отдельном event loop внутри пула потоков."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    return loop.run_until_complete(func(*args, **kwargs))
+    return loop.run_until_complete(coro_func(*args, **kwargs))
 
 
 class StartAuthView(APIView):
@@ -27,20 +28,14 @@ class StartAuthView(APIView):
         session_path = serializer.validated_data["session_path"]
 
         async def send_code():
-            app = Client(session_path, api_id=API_ID, api_hash=API_HASH, phone_number=phone)
-            await app.connect()
-            sent = await app.send_code(phone)
-            return app, sent.phone_code_hash
+            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+                sent = await app.send_code(phone)
+                return sent.phone_code_hash
 
         try:
-            # Получаем клиент и hash
-            client, phone_code_hash = executor.submit(run_in_thread, send_code).result()
-            # Сохраняем активный клиент (НЕ закрываем!)
-            active_sessions[phone] = {
-                "client": client,
-                "phone_code_hash": phone_code_hash,
-                "session_path": session_path,
-            }
+            phone_code_hash = executor.submit(run_in_thread, send_code).result()
+            # сохраняем только hash, а не сам клиент
+            active_sessions[phone] = {"phone_code_hash": phone_code_hash, "session_path": session_path}
             return Response({"status": "code_sent"})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -56,14 +51,13 @@ class CompleteAuthView(APIView):
         if phone not in active_sessions:
             return Response({"error": "Session not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        session_info = active_sessions[phone]
-        client: Client = session_info["client"]
-        phone_code_hash = session_info["phone_code_hash"]
-        session_path = session_info["session_path"]
+        session_path = active_sessions[phone]["session_path"]
+        phone_code_hash = active_sessions[phone]["phone_code_hash"]
 
         async def complete_login():
-            await client.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
-            await client.disconnect()
+            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+                await app.sign_in(phone_number=phone, phone_code_hash=phone_code_hash, phone_code=code)
+                return True
 
         try:
             executor.submit(run_in_thread, complete_login).result()
