@@ -8,8 +8,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-API_ID = 123456
-API_HASH = "your_api_hash_here"
 
 executor = ThreadPoolExecutor(max_workers=4)
 active_sessions = {}
