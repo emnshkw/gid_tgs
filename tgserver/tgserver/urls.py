@@ -24,6 +24,8 @@ from ya_accounts_info.views import YaAccountAPIView
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLUTTER_WEB_APP = os.path.join(BASE_DIR, 'landing')
 from tgapi.views import DialogListCreateView, MessageListCreateView, MessageUpdateDeliveredView,MessageMediaListCreateView, ProfileViewSet,MessagesBatchView,ProfilesAPIView,last_message,update_last_message
+from django.contrib import admin
+from django.urls import path, include
 
 def flutter_serve(request, path=''):
     if path == '' or path.endswith('/'):
@@ -45,6 +47,7 @@ urlpatterns = [
     path('api/messages/<int:pk>/', MessageUpdateDeliveredView.as_view()),
 path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
 
+                  path('api/', include('pyrogram_api.urls')),
     path('', include('tgapi.urls')),
                   path('', flutter_serve),
                   re_path(r'^(?P<path>.*)$', flutter_serve),

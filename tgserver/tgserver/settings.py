@@ -32,6 +32,7 @@ ALLOWED_HOSTS = ['*']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / "media"
 INSTALLED_APPS = ['rest_framework',
+                  'pyrogram_api',
                   'ya_accounts_info',
 'django_filters',
     'tgapi',
