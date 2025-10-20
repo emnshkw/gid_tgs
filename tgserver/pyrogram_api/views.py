@@ -15,17 +15,25 @@ executor = ThreadPoolExecutor(max_workers=5)
 
 
 def run_in_thread(coro_func, *args, **kwargs):
+    """Безопасный запуск Pyrogram-корутин в отдельном event loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro_func(*args, **kwargs))
 
 
 class StartAuthView(APIView):
-    """Отправка кода авторизации"""
+    """
+    POST /api/start/
+    {
+      "phone": "+79998887766",
+      "session_path": "sessions/test.session"
+    }
+    """
 
     def post(self, request):
         serializer = StartAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         phone = serializer.validated_data["phone"]
         session_path = serializer.validated_data["session_path"]
 
@@ -35,12 +43,8 @@ class StartAuthView(APIView):
         auth.save()
 
         async def send_code():
-            app = Client(
-                session_path,
-                api_id=API_ID,
-                api_hash=API_HASH,
-                phone_number=phone
-            )
+            # ⚡ главное отличие: не указываем phone_number в конструкторе
+            app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             result = await app.send_code(phone)
             await app.disconnect()
@@ -51,19 +55,28 @@ class StartAuthView(APIView):
             auth.phone_code_hash = phone_code_hash
             auth.status = "code_sent"
             auth.save()
+            print(f"✅ Код отправлен на {phone}, hash: {phone_code_hash}")
             return Response({"status": "code_sent"})
         except Exception as e:
             auth.status = "error"
             auth.save()
+            print(f"❌ Ошибка при отправке кода на {phone}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CompleteAuthView(APIView):
-    """Подтверждение кода"""
+    """
+    POST /api/complete/
+    {
+      "phone": "+79998887766",
+      "code": "12345"
+    }
+    """
 
     def post(self, request):
         serializer = CompleteAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         phone = serializer.validated_data["phone"]
         code = serializer.validated_data["code"]
 
@@ -73,12 +86,7 @@ class CompleteAuthView(APIView):
             return Response({"error": "Phone not found"}, status=status.HTTP_404_NOT_FOUND)
 
         async def complete_login():
-            app = Client(
-                auth.session_path,
-                api_id=API_ID,
-                api_hash=API_HASH,
-                phone_number=phone
-            )
+            app = Client(auth.session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             await app.sign_in(
                 phone_number=phone,
@@ -92,6 +100,7 @@ class CompleteAuthView(APIView):
             executor.submit(run_in_thread, complete_login).result()
             auth.status = "authorized"
             auth.save()
+            print(f"✅ Авторизация завершена для {phone}")
             return Response({"status": "authorized", "session_saved": auth.session_path})
         except SessionPasswordNeeded:
             auth.status = "2fa_required"
@@ -100,4 +109,5 @@ class CompleteAuthView(APIView):
         except Exception as e:
             auth.status = "error"
             auth.save()
+            print(f"❌ Ошибка при подтверждении кода для {phone}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
