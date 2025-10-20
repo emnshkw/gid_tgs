@@ -3,19 +3,18 @@ API_HASH = "93732d8d7cd181e163b69ad5079d2020"  # 🔹 Твой api_hash
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pyrogram import Client
-from pyrogram.errors import SessionPasswordNeeded
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import TelegramAuth
-from .serializers import StartAuthSerializer, CompleteAuthSerializer
+from .serializers import StartAuthSerializer
 
 
 executor = ThreadPoolExecutor(max_workers=5)
 
 
 def run_in_thread(coro_func, *args, **kwargs):
-    """Безопасный запуск Pyrogram-корутин в отдельном event loop."""
+    """Запускает Pyrogram-корутину в отдельном event loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro_func(*args, **kwargs))
@@ -43,20 +42,35 @@ class StartAuthView(APIView):
         auth.save()
 
         async def send_code():
-            # ⚡ главное отличие: не указываем phone_number в конструкторе
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             result = await app.send_code(phone)
             await app.disconnect()
-            return result.phone_code_hash
+            return result
 
         try:
-            phone_code_hash = executor.submit(run_in_thread, send_code).result()
-            auth.phone_code_hash = phone_code_hash
+            result = executor.submit(run_in_thread, send_code).result()
+
+            auth.phone_code_hash = result.phone_code_hash
             auth.status = "code_sent"
             auth.save()
-            print(f"✅ Код отправлен на {phone}, hash: {phone_code_hash}")
-            return Response({"status": "code_sent"})
+
+            details = {
+                "type": str(result.type),
+                "next_type": str(result.next_type),
+                "timeout": result.timeout,
+                "phone_code_hash": result.phone_code_hash,
+            }
+
+            print(f"✅ Код отправлен на {phone}")
+            print("📦 Ответ Telegram:", details)
+
+            return Response({
+                "status": "code_sent",
+                "phone": phone,
+                "details": details
+            })
+
         except Exception as e:
             auth.status = "error"
             auth.save()
