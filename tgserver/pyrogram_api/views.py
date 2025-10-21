@@ -6,29 +6,48 @@ from rest_framework.views import APIView
 from pyrogram import Client
 from pyrogram.errors import PhoneCodeExpired, PhoneCodeInvalid
 import os
-
+import threading
 SESSION_DIR = '/home/fetcher/sessions/'
 os.makedirs(SESSION_DIR, exist_ok=True)
 
 # временное хранилище данных между start и complete
 TEMP_DATA = {}
 
+# ---- ЕДИНЫЙ event loop в отдельном потоке ----
+_loop = None
+_thread = None
 
-def run_async(coro):
-    """Создаёт отдельный event loop, чтобы Pyrogram не зависал в Django."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(coro)
-    loop.close()
-    return result
 
+def ensure_loop():
+    """Создаёт или возвращает глобальный event loop в отдельном потоке."""
+    global _loop, _thread
+    if _loop is None or _loop.is_closed():
+        _loop = asyncio.new_event_loop()
+
+        def run_loop():
+            asyncio.set_event_loop(_loop)
+            _loop.run_forever()
+
+        _thread = threading.Thread(target=run_loop, daemon=True)
+        _thread.start()
+    return _loop
+
+
+def run_async_threadsafe(coro):
+    """Безопасно выполняет асинхронный код в Django."""
+    loop = ensure_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
+
+
+# ---- Django views ----
 
 class StartAuthView(APIView):
     """1️⃣ Отправка кода подтверждения"""
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
-            return JsonResponse({"error": "Phone required"}, status=400)
+            return JsonResponse({"error": "Phone number required"}, status=400)
 
         session_path = os.path.join(SESSION_DIR, f"{phone}.session")
 
@@ -38,10 +57,9 @@ class StartAuthView(APIView):
                 return sent_code
 
         try:
-            sent_code = run_async(send_code())
-            TEMP_DATA[phone] = {
-                "phone_code_hash": sent_code.phone_code_hash
-            }
+            sent_code = run_async_threadsafe(send_code())
+            TEMP_DATA[phone] = {"phone_code_hash": sent_code.phone_code_hash}
+
             return JsonResponse({
                 "status": "code_sent",
                 "phone": phone,
@@ -75,7 +93,7 @@ class CompleteAuthView(APIView):
                 return me
 
         try:
-            me = run_async(sign_in())
+            me = run_async_threadsafe(sign_in())
             return JsonResponse({
                 "status": "authorized",
                 "user": {
