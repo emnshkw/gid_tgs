@@ -16,6 +16,7 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 # ---- Глобальный event loop в отдельном потоке ----
 # ---- Глобальный asyncio loop в отдельном потоке ----
 # ---- Глобальный asyncio loop ----
+# ---- Глобальный asyncio loop в отдельном потоке ----
 _loop = None
 _thread = None
 
@@ -39,7 +40,7 @@ def run_async_threadsafe(coro):
 # ---- Вьюхи ----
 
 class StartAuthView(APIView):
-    """Отправка кода на телефон (APP или SMS)"""
+    """Отправка кода и создание сессии"""
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
@@ -55,7 +56,7 @@ class StartAuthView(APIView):
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             try:
-                sent_code = await app.send_code(phone)  # Telegram сам выбирает APP/SMS
+                sent_code = await app.send_code(phone)
                 await app.disconnect()
                 return sent_code
             except Exception as e:
@@ -72,8 +73,8 @@ class StartAuthView(APIView):
                 "status": "code_sent",
                 "phone": phone,
                 "details": {
-                    "type": str(sent_code.type),  # SentCodeType.APP / SentCodeType.SMS
-                    "message": "Введите код, который придет на устройство"
+                    "type": str(sent_code.type),
+                    "message": "Введите код с устройства"
                 }
             })
         except Exception as e:
@@ -83,7 +84,7 @@ class StartAuthView(APIView):
 
 
 class CompleteAuthView(APIView):
-    """Завершение авторизации по коду"""
+    """Завершение авторизации с имитацией интерактивного ввода"""
     def post(self, request):
         phone = request.data.get("phone")
         code = request.data.get("code")
@@ -99,20 +100,23 @@ class CompleteAuthView(APIView):
         if not auth_obj.phone_code_hash:
             return JsonResponse({"error": "No code sent, request /start first"}, status=400)
 
-        # TTL 2 минуты для кода
         if time.time() - auth_obj.updated_at.timestamp() > 120:
             auth_obj.status = "error"
             auth_obj.save()
             return JsonResponse({"error": "Code expired, request new code"}, status=400)
 
         async def complete_login():
+            # callback имитирует интерактивный ввод кода
+            def code_callback():
+                return code
+
             app = Client(auth_obj.session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             try:
                 me = await app.sign_in(
                     phone_number=phone,
                     phone_code_hash=auth_obj.phone_code_hash,
-                    phone_code=code
+                    phone_code_callback=code_callback  # <-- имитация интерактивного ввода
                 )
                 await app.disconnect()
                 return me
