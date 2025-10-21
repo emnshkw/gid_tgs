@@ -1,127 +1,77 @@
 API_ID = 9018428  # 🔹 Твой api_id от https://my.telegram.org
 API_HASH = "93732d8d7cd181e163b69ad5079d2020"  # 🔹 Твой api_hash
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from pyrogram import Client
+from django.http import JsonResponse
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import TelegramAuth
-from .serializers import StartAuthSerializer,CompleteAuthSerializer
+from pyrogram import Client
+from pyrogram.errors import PhoneCodeExpired, PhoneCodeInvalid
+import os
 
+SESSIONS_DIR = '/home/fetcher/sessions/'
+os.makedirs(SESSIONS_DIR, exist_ok=True)
 
-executor = ThreadPoolExecutor(max_workers=5)
-
-
-def run_in_thread(coro_func, *args, **kwargs):
-    """Запускает Pyrogram-корутину в отдельном event loop."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro_func(*args, **kwargs))
+# временное хранилище данных между start и complete
+TEMP_DATA = {}
 
 
 class StartAuthView(APIView):
-    """
-    POST /api/start/
-    {
-      "phone": "+79998887766",
-      "session_path": "sessions/test.session"
-    }
-    """
-
     def post(self, request):
-        serializer = StartAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        phone = request.data.get("phone")
+        if not phone:
+            return JsonResponse({"error": "phone required"}, status=400)
 
-        phone = serializer.validated_data["phone"]
-        session_path = serializer.validated_data["session_path"]
-
-        auth, _ = TelegramAuth.objects.get_or_create(phone=phone)
-        auth.session_path = session_path
-        auth.status = "created"
-        auth.save()
+        session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
 
         async def send_code():
-            app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
-            await app.connect()
-            result = await app.send_code(phone)
-            await app.disconnect()
-            return result
+            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+                result = await app.send_code(phone)
+                TEMP_DATA[phone] = {
+                    "phone_code_hash": result.phone_code_hash,
+                    "session_path": session_path,
+                }
+                return result
 
-        try:
-            result = executor.submit(run_in_thread, send_code).result()
+        result = asyncio.run(send_code())
 
-            auth.phone_code_hash = result.phone_code_hash
-            auth.status = "code_sent"
-            auth.save()
-
-            details = {
+        return JsonResponse({
+            "status": "code_sent",
+            "phone": phone,
+            "details": {
                 "type": str(result.type),
                 "next_type": str(result.next_type),
                 "timeout": result.timeout,
                 "phone_code_hash": result.phone_code_hash,
-            }
-
-            print(f"✅ Код отправлен на {phone}")
-            print("📦 Ответ Telegram:", details)
-
-            return Response({
-                "status": "code_sent",
-                "phone": phone,
-                "details": details
-            })
-
-        except Exception as e:
-            auth.status = "error"
-            auth.save()
-            print(f"❌ Ошибка при отправке кода на {phone}: {e}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            },
+        })
 
 
 class CompleteAuthView(APIView):
-    """
-    POST /api/complete/
-    {
-      "phone": "+79998887766",
-      "code": "12345"
-    }
-    """
-
     def post(self, request):
-        serializer = CompleteAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        phone = request.data.get("phone")
+        code = request.data.get("code")
 
-        phone = serializer.validated_data["phone"]
-        code = serializer.validated_data["code"]
+        if not phone or not code:
+            return JsonResponse({"error": "phone and code required"}, status=400)
 
-        try:
-            auth = TelegramAuth.objects.get(phone=phone)
-        except TelegramAuth.DoesNotExist:
-            return Response({"error": "Phone not found"}, status=status.HTTP_404_NOT_FOUND)
+        temp = TEMP_DATA.get(phone)
+        if not temp:
+            return JsonResponse({"error": "no pending session for this phone"}, status=400)
+
+        session_path = temp["session_path"]
+        phone_code_hash = temp["phone_code_hash"]
 
         async def complete_login():
-            app = Client(auth.session_path, api_id=API_ID, api_hash=API_HASH)
-            await app.connect()
-            await app.sign_in(
-                phone_number=phone,
-                phone_code_hash=auth.phone_code_hash,
-                phone_code=code
-            )
-            await app.disconnect()
-            return True
+            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+                try:
+                    await app.sign_in(phone, phone_code_hash, code)
+                    me = await app.get_me()
+                    return {"status": "success", "user": me.first_name}
+                except PhoneCodeInvalid:
+                    return {"error": "invalid_code"}
+                except PhoneCodeExpired:
+                    return {"error": "code_expired"}
+                except Exception as e:
+                    return {"error": str(e)}
 
-        try:
-            executor.submit(run_in_thread, complete_login).result()
-            auth.status = "authorized"
-            auth.save()
-            print(f"✅ Авторизация завершена для {phone}")
-            return Response({"status": "authorized", "session_saved": auth.session_path})
-        # except SessionPasswordNeeded:
-        #     auth.status = "2fa_required"
-        #     auth.save()
-        #     return Response({"error": "2FA password required"}, status=status.HTTP_401_UNAUTHORIZED)
-        except Exception as e:
-            auth.status = "error"
-            auth.save()
-            print(f"❌ Ошибка при подтверждении кода для {phone}: {e}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        result = asyncio.run(complete_login())
+        return JsonResponse(result)
