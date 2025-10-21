@@ -13,6 +13,15 @@ os.makedirs(SESSIONS_DIR, exist_ok=True)
 # временное хранилище данных между start и complete
 TEMP_DATA = {}
 
+# создаём единый event loop для всего Django-процесса
+LOOP = asyncio.new_event_loop()
+asyncio.set_event_loop(LOOP)
+
+
+def run_async(coro):
+    """Безопасно запускает async-код, не создавая новый event loop"""
+    return asyncio.run_coroutine_threadsafe(coro, LOOP).result()
+
 
 class StartAuthView(APIView):
     def post(self, request):
@@ -37,18 +46,20 @@ class StartAuthView(APIView):
                 }
                 return result
 
-        result = asyncio.run(send_code())
-
-        return JsonResponse({
-            "status": "code_sent",
-            "phone": phone,
-            "details": {
-                "type": str(result.type),
-                "next_type": str(result.next_type),
-                "timeout": result.timeout,
-                "phone_code_hash": result.phone_code_hash,
-            },
-        })
+        try:
+            result = run_async(send_code())
+            return JsonResponse({
+                "status": "code_sent",
+                "phone": phone,
+                "details": {
+                    "type": str(result.type),
+                    "next_type": str(result.next_type),
+                    "timeout": result.timeout,
+                    "phone_code_hash": result.phone_code_hash,
+                },
+            })
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 
 class CompleteAuthView(APIView):
@@ -85,5 +96,5 @@ class CompleteAuthView(APIView):
                 except Exception as e:
                     return {"error": str(e)}
 
-        result = asyncio.run(complete_login())
+        result = run_async(complete_login())
         return JsonResponse(result)
