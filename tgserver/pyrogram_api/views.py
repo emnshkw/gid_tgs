@@ -14,6 +14,7 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 # временное хранилище данных между start и complete
 # ---- Глобальный event loop в отдельном потоке ----
 # ---- Глобальный asyncio loop в отдельном потоке ----
+# ---- Глобальный asyncio loop ----
 _loop = None
 _thread = None
 
@@ -53,7 +54,7 @@ class StartAuthView(APIView):
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             try:
-                sent_code = await app.send_code(phone)  # Telegram сам решает APP/SMS
+                sent_code = await app.send_code(phone)  # Telegram сам выбирает APP/SMS
                 await app.disconnect()
                 return sent_code
             except Exception as e:
@@ -71,7 +72,7 @@ class StartAuthView(APIView):
                 "phone": phone,
                 "details": {
                     "type": str(sent_code.type),  # SentCodeType.APP / SentCodeType.SMS
-                    "phone_code_hash": sent_code.phone_code_hash
+                    "message": "Введите код, который придет на устройство"
                 }
             })
         except Exception as e:
@@ -85,15 +86,17 @@ class CompleteAuthView(APIView):
     def post(self, request):
         phone = request.data.get("phone")
         code = request.data.get("code")
-        phone_code_hash = request.data.get("phone_code_hash")
 
-        if not all([phone, code, phone_code_hash]):
-            return JsonResponse({"error": "phone, code, phone_code_hash required"}, status=400)
+        if not all([phone, code]):
+            return JsonResponse({"error": "phone and code required"}, status=400)
 
         try:
             auth_obj = TelegramAuth.objects.get(phone=phone)
         except TelegramAuth.DoesNotExist:
             return JsonResponse({"error": "Phone not found"}, status=400)
+
+        if not auth_obj.phone_code_hash:
+            return JsonResponse({"error": "No code sent, request /start first"}, status=400)
 
         # TTL 2 минуты для кода
         if time.time() - auth_obj.updated_at.timestamp() > 120:
@@ -107,7 +110,7 @@ class CompleteAuthView(APIView):
             try:
                 me = await app.sign_in(
                     phone_number=phone,
-                    phone_code_hash=phone_code_hash,
+                    phone_code_hash=auth_obj.phone_code_hash,
                     phone_code=code
                 )
                 await app.disconnect()
