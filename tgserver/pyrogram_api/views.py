@@ -33,10 +33,11 @@ def run_async_threadsafe(coro):
     future = asyncio.run_coroutine_threadsafe(coro, loop)
     return future.result()
 
+
 # ---- Вьюхи ----
 
 class StartAuthView(APIView):
-    """Отправка SMS-кода на телефон"""
+    """Отправка кода на телефон (APP или SMS)"""
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
@@ -52,8 +53,7 @@ class StartAuthView(APIView):
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             try:
-                # force_sms=True гарантирует, что код придет на телефон (SMS)
-                sent_code = await app.send_code(phone, force_sms=True)
+                sent_code = await app.send_code(phone)  # Telegram сам решает APP/SMS
                 await app.disconnect()
                 return sent_code
             except Exception as e:
@@ -70,7 +70,7 @@ class StartAuthView(APIView):
                 "status": "code_sent",
                 "phone": phone,
                 "details": {
-                    "type": str(sent_code.type),  # SentCodeType.SMS
+                    "type": str(sent_code.type),  # SentCodeType.APP / SentCodeType.SMS
                     "phone_code_hash": sent_code.phone_code_hash
                 }
             })
@@ -81,7 +81,7 @@ class StartAuthView(APIView):
 
 
 class CompleteAuthView(APIView):
-    """Завершение авторизации по SMS-коду"""
+    """Завершение авторизации по коду"""
     def post(self, request):
         phone = request.data.get("phone")
         code = request.data.get("code")
@@ -95,7 +95,7 @@ class CompleteAuthView(APIView):
         except TelegramAuth.DoesNotExist:
             return JsonResponse({"error": "Phone not found"}, status=400)
 
-        # TTL 2 минуты
+        # TTL 2 минуты для кода
         if time.time() - auth_obj.updated_at.timestamp() > 120:
             auth_obj.status = "error"
             auth_obj.save()
