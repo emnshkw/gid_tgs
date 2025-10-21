@@ -13,7 +13,7 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 
 # временное хранилище данных между start и complete
 # ---- Глобальный event loop в отдельном потоке ----
-
+# ---- Глобальный asyncio loop в отдельном потоке ----
 _loop = None
 _thread = None
 
@@ -33,8 +33,10 @@ def run_async_threadsafe(coro):
     future = asyncio.run_coroutine_threadsafe(coro, loop)
     return future.result()
 
+# ---- Вьюхи ----
+
 class StartAuthView(APIView):
-    """Отправка кода в Telegram APP"""
+    """Отправка SMS-кода на телефон"""
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
@@ -50,8 +52,8 @@ class StartAuthView(APIView):
             app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
             await app.connect()
             try:
-                # Telegram сам решает куда отправить код (APP/SMS)
-                sent_code = await app.send_code(phone)
+                # force_sms=True гарантирует, что код придет на телефон (SMS)
+                sent_code = await app.send_code(phone, force_sms=True)
                 await app.disconnect()
                 return sent_code
             except Exception as e:
@@ -63,11 +65,12 @@ class StartAuthView(APIView):
             auth_obj.phone_code_hash = sent_code.phone_code_hash
             auth_obj.status = "code_sent"
             auth_obj.save()
+
             return JsonResponse({
                 "status": "code_sent",
                 "phone": phone,
                 "details": {
-                    "type": str(sent_code.type),
+                    "type": str(sent_code.type),  # SentCodeType.SMS
                     "phone_code_hash": sent_code.phone_code_hash
                 }
             })
@@ -76,8 +79,9 @@ class StartAuthView(APIView):
             auth_obj.save()
             return JsonResponse({"error": str(e)}, status=500)
 
+
 class CompleteAuthView(APIView):
-    """Подтверждение кода, полученного в приложении"""
+    """Завершение авторизации по SMS-коду"""
     def post(self, request):
         phone = request.data.get("phone")
         code = request.data.get("code")
@@ -90,6 +94,12 @@ class CompleteAuthView(APIView):
             auth_obj = TelegramAuth.objects.get(phone=phone)
         except TelegramAuth.DoesNotExist:
             return JsonResponse({"error": "Phone not found"}, status=400)
+
+        # TTL 2 минуты
+        if time.time() - auth_obj.updated_at.timestamp() > 120:
+            auth_obj.status = "error"
+            auth_obj.save()
+            return JsonResponse({"error": "Code expired, request new code"}, status=400)
 
         async def complete_login():
             app = Client(auth_obj.session_path, api_id=API_ID, api_hash=API_HASH)
@@ -112,7 +122,11 @@ class CompleteAuthView(APIView):
             auth_obj.save()
             return JsonResponse({
                 "status": "authorized",
-                "user": {"id": me.id, "first_name": me.first_name, "phone": me.phone_number}
+                "user": {
+                    "id": me.id,
+                    "first_name": me.first_name,
+                    "phone": me.phone_number
+                }
             })
         except Exception as e:
             auth_obj.status = "error"
