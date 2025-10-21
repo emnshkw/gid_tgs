@@ -1,7 +1,6 @@
 from django.urls import path
-from .views import StartAuthView, CompleteAuthView
+from .views import UploadSessionView
 
 urlpatterns = [
-    path('start/', StartAuthView.as_view(), name='start_auth'),
-    path('complete/', CompleteAuthView.as_view(), name='complete_auth'),
+    path('send/', UploadSessionView.as_view(), name='start_auth')
 ]
