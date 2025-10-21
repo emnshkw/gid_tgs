@@ -97,8 +97,8 @@ class CompleteAuthView(APIView):
             try:
                 me = await app.sign_in(
                     phone_number=phone,
-                    code=code,
-                    phone_code_hash=phone_code_hash
+                    phone_code_hash=phone_code_hash,
+                    phone_code=code
                 )
                 await app.disconnect()
                 return me
