@@ -23,7 +23,13 @@ class StartAuthView(APIView):
         session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
 
         async def send_code():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+            async with Client(
+                session_path,
+                api_id=API_ID,
+                api_hash=API_HASH,
+                in_memory=False,
+                phone_number=phone,
+            ) as app:
                 result = await app.send_code(phone)
                 TEMP_DATA[phone] = {
                     "phone_code_hash": result.phone_code_hash,
@@ -57,11 +63,17 @@ class CompleteAuthView(APIView):
         if not temp:
             return JsonResponse({"error": "no pending session for this phone"}, status=400)
 
-        session_path = temp["session_path"]
         phone_code_hash = temp["phone_code_hash"]
+        session_path = temp["session_path"]
 
         async def complete_login():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+            async with Client(
+                session_path,
+                api_id=API_ID,
+                api_hash=API_HASH,
+                in_memory=False,
+                phone_number=phone,
+            ) as app:
                 try:
                     await app.sign_in(phone, phone_code_hash, code)
                     me = await app.get_me()
