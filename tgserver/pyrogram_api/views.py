@@ -12,14 +12,12 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 
 # временное хранилище данных между start и complete
 TEMP_DATA = {}
-
-# ---- ЕДИНЫЙ event loop в отдельном потоке ----
+# ---- Глобальный event loop ----
 _loop = None
 _thread = None
 
 
 def ensure_loop():
-    """Создаёт или возвращает глобальный event loop в отдельном потоке."""
     global _loop, _thread
     if _loop is None or _loop.is_closed():
         _loop = asyncio.new_event_loop()
@@ -34,32 +32,38 @@ def ensure_loop():
 
 
 def run_async_threadsafe(coro):
-    """Безопасно выполняет асинхронный код в Django."""
     loop = ensure_loop()
     future = asyncio.run_coroutine_threadsafe(coro, loop)
     return future.result()
 
 
-# ---- Django views ----
+# ---- Django Views ----
 
 class StartAuthView(APIView):
     """1️⃣ Отправка кода подтверждения"""
     def post(self, request):
         phone = request.data.get("phone")
         if not phone:
-            return JsonResponse({"error": "Phone number required"}, status=400)
+            return JsonResponse({"error": "Phone required"}, status=400)
 
         session_path = os.path.join(SESSION_DIR, f"{phone}.session")
 
         async def send_code():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
+            app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
+            await app.connect()
+            try:
                 sent_code = await app.send_code(phone)
+                TEMP_DATA[phone] = {
+                    "phone_code_hash": sent_code.phone_code_hash
+                }
+                await app.disconnect()
                 return sent_code
+            except Exception as e:
+                await app.disconnect()
+                raise e
 
         try:
             sent_code = run_async_threadsafe(send_code())
-            TEMP_DATA[phone] = {"phone_code_hash": sent_code.phone_code_hash}
-
             return JsonResponse({
                 "status": "code_sent",
                 "phone": phone,
@@ -87,13 +91,23 @@ class CompleteAuthView(APIView):
 
         session_path = os.path.join(SESSION_DIR, f"{phone}.session")
 
-        async def sign_in():
-            async with Client(session_path, api_id=API_ID, api_hash=API_HASH) as app:
-                me = await app.sign_in(phone, code, phone_code_hash)
+        async def complete_login():
+            app = Client(session_path, api_id=API_ID, api_hash=API_HASH)
+            await app.connect()
+            try:
+                me = await app.sign_in(
+                    phone_number=phone,
+                    code=code,
+                    phone_code_hash=phone_code_hash
+                )
+                await app.disconnect()
                 return me
+            except Exception as e:
+                await app.disconnect()
+                raise e
 
         try:
-            me = run_async_threadsafe(sign_in())
+            me = run_async_threadsafe(complete_login())
             return JsonResponse({
                 "status": "authorized",
                 "user": {
