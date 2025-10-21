@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import TelegramAuth
-from .serializers import StartAuthSerializer
+from .serializers import StartAuthSerializer,CompleteAuthSerializer
 
 
 executor = ThreadPoolExecutor(max_workers=5)
@@ -116,10 +116,10 @@ class CompleteAuthView(APIView):
             auth.save()
             print(f"✅ Авторизация завершена для {phone}")
             return Response({"status": "authorized", "session_saved": auth.session_path})
-        except SessionPasswordNeeded:
-            auth.status = "2fa_required"
-            auth.save()
-            return Response({"error": "2FA password required"}, status=status.HTTP_401_UNAUTHORIZED)
+        # except SessionPasswordNeeded:
+        #     auth.status = "2fa_required"
+        #     auth.save()
+        #     return Response({"error": "2FA password required"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             auth.status = "error"
             auth.save()
