@@ -8,7 +8,7 @@ class ProfileSelizalier(serializers.ModelSerializer):
         model = Profile
         fields = '__all__'
     def get_unread_count(self, obj):
-        return Message.objects.filter(dialog=Dialog.objects.get(account_phone=obj.phone_number),is_read=False).count()
+        return Message.objects.filter(account_phone=obj.phone_number,is_read=False).count()
 
 
 class MediaSerializer(serializers.ModelSerializer):

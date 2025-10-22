@@ -65,6 +65,7 @@ class MessagesBatchView(APIView):
                         telegram_id=telegram_id,
                         sender_name=sender_name,
                         text=text,
+                        account_phone=dialog.account_phone,
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
                     )
