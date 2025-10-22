@@ -209,6 +209,22 @@ class MessageListCreateView(generics.ListCreateAPIView):
             msgs.update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+import telebot
+def broadcast_info_message(text):
+    API_TOKEN = '8363539346:AAH8neba0XNXURW_3VmeQzOxXOTNThs_yqs'
+    bot = telebot.TeleBot(API_TOKEN)
+    user_ids = [758861869]
+    # user_ids = [758861869]
+    """
+    Рассылает текст всем пользователям из списка user_ids.
+    """
+    for user_id in user_ids:
+        try:
+            bot.send_message(user_id, text)
+            print(f"Отправлено пользователю {user_id}")
+        except Exception as e:
+            print(f"Не удалось отправить пользователю {user_id}: {e}")
 class MessageMediaListCreateView(generics.ListCreateAPIView):
     queryset = Message.objects.all().order_by("date")
     serializer_class = MessageSerializer
@@ -222,7 +238,9 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         message = serializer.save()
         try:
             dialog = message.dialog
+            broadcast_info_message(f'Диалог - {dialog}')
             profile = Profile.objects.get(phone_number=dialog.account_phone)
+            broadcast_info_message(f'Профиль - {profile}')
             if message.date > profile.last_message_date:
                 profile.last_message_date = message.date
                 profile.save()
