@@ -3,9 +3,12 @@ from .models import Dialog, Message, Media, Profile
 
 
 class ProfileSelizalier(serializers.ModelSerializer):
+    unread_count = serializers.SerializerMethodField()
     class Meta:
         model = Profile
         fields = '__all__'
+    def get_unread_count(self, obj):
+        return Message.objects.filter(dialog=Dialog.objects.get(account_phone=obj.phone_number),is_read=False).count()
 
 
 class MediaSerializer(serializers.ModelSerializer):
