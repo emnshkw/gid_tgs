@@ -244,8 +244,8 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
             if message.date > profile.last_message_date:
                 profile.last_message_date = message.date
                 profile.save()
-        except:
-            pass
+        except Exception as e:
+            broadcast_info_message(f'Ошибка при установке даты - {e}')
         # прикрепляем файлы, если есть
         files = request.FILES.getlist("files")
         print(len(files))
