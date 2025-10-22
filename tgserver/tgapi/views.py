@@ -159,6 +159,13 @@ class ProfilesAPIView(APIView):
                                 continue
                     except:
                         pass
+            for i in profiles:
+                unread = 0
+                for d in Dialog.objects.filter(account_phone=i.phone_number):
+                    d_data = DialogSerializer(d).data
+                    unread += int(d_data['unread_count'])
+                i.unread_count = unread
+                i.save()
             return Response(ProfileSelizalier(profiles,many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
