@@ -142,7 +142,20 @@ class ProfilesAPIView(APIView):
             except:
                 return Response({"message": "Аккаунт не найден"})
         else:
-            profiles = list(Profile.objects.all().order_by('last_message_date'))[::-1]
+            profiles = list(Profile.objects.all())
+            for i in range(len(profiles)):
+                for x in range(i+1,len(profiles)):
+                    first = profiles[i]
+                    second = profiles[x]
+                    if first.last_message_date is None and second.last_message_date is not None:
+                        profiles[i] = second
+                        profiles[x] = first
+                        continue
+                    if first is not None and second is not None:
+                        if second.last_message_date > first.last_message_date:
+                            profiles[i] = second
+                            profiles[x] = first
+                            continue
             return Response(ProfileSelizalier(profiles,many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
