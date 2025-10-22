@@ -50,15 +50,21 @@ class MessagesBatchView(APIView):
                 dialog = Dialog.objects.get(id=dialog_id)
 
                 telegram_id = msg_data.get("telegram_id")
+                date_str = msg_data.get("date")
                 if dialog.last_message_id < int(telegram_id):
                     dialog.last_message_id = int(telegram_id)
                     dialog.save()
+                    try:
+                        profile = Profile.objects.get(phone_number=dialog.account_phone)
+                        profile.last_message_date = parse_iso_datetime(date_str + "Z")
+                        profile.save()
+                    except Exception as e:
+                        broadcast_info_message(f'Ошибка при обновлении даты - {e}')
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
                     continue  # уже есть
 
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
-                date_str = msg_data.get("date")
                 try:
                     msg = Message.objects.create(
                         dialog_id=dialog_id,
@@ -240,16 +246,16 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         message = serializer.save()
-        try:
-            dialog = message.dialog
-            broadcast_info_message(f'Диалог - {dialog}')
-            profile = Profile.objects.get(phone_number=dialog.account_phone)
-            broadcast_info_message(f'Профиль - {profile}')
-            if message.date > profile.last_message_date:
-                profile.last_message_date = message.date
-                profile.save()
-        except Exception as e:
-            broadcast_info_message(f'Ошибка при установке даты - {e}')
+        # try:
+        #     dialog = message.dialog
+        #     broadcast_info_message(f'Диалог - {dialog}')
+        #     profile = Profile.objects.get(phone_number=dialog.account_phone)
+        #     broadcast_info_message(f'Профиль - {profile}')
+        #     if message.date > profile.last_message_date:
+        #         profile.last_message_date = message.date
+        #         profile.save()
+        # except Exception as e:
+        #     broadcast_info_message(f'Ошибка при установке даты - {e}')
         # прикрепляем файлы, если есть
         files = request.FILES.getlist("files")
         print(len(files))
