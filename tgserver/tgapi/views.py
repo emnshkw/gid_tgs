@@ -47,8 +47,12 @@ class MessagesBatchView(APIView):
                 if not Dialog.objects.filter(id=dialog_id).exists():
                     print(f"❌ Нет диалога {dialog_id}, пропускаем сообщение")
                     continue
+                dialog = Dialog.objects.get(id=dialog_id)
 
                 telegram_id = msg_data.get("telegram_id")
+                if dialog.last_message_id < int(telegram_id):
+                    dialog.last_message_id = int(telegram_id)
+                    dialog.save()
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
                     continue  # уже есть
 
