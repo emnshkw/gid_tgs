@@ -221,7 +221,7 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         message = serializer.save()
         try:
-            dialog = Dialog.objects.get(id=int(message.dialog))
+            dialog = message.dialog
             profile = Profile.objects.get(phone_number=dialog.account_phone)
             if message.date > profile.last_message_date:
                 profile.last_message_date = message.date
