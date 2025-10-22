@@ -51,21 +51,15 @@ class MessagesBatchView(APIView):
 
                 telegram_id = msg_data.get("telegram_id")
                 date_str = msg_data.get("date")
-                if dialog.last_message_id < int(telegram_id):
-                    dialog.last_message_id = int(telegram_id)
-                    dialog.save()
-                    try:
-                        profile = Profile.objects.get(phone_number=dialog.account_phone)
-                        profile.last_message_date = parse_iso_datetime(date_str + "Z")
-                        profile.save()
-                    except Exception as e:
-                        broadcast_info_message(f'Ошибка при обновлении даты - {e}')
+
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
                     continue  # уже есть
 
                 text = msg_data.get("text", "")
                 sender_name = msg_data.get("sender_name", "Unknown")
                 try:
+                    if sender_name in ['Бот Яндекс Директа',"Telegram"]:
+                        continue
                     msg = Message.objects.create(
                         dialog_id=dialog_id,
                         telegram_id=telegram_id,
@@ -74,6 +68,15 @@ class MessagesBatchView(APIView):
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
                     )
+                    if dialog.last_message_id < int(telegram_id):
+                        dialog.last_message_id = int(telegram_id)
+                        dialog.save()
+                        try:
+                            profile = Profile.objects.get(phone_number=dialog.account_phone)
+                            profile.last_message_date = parse_iso_datetime(date_str + "Z")
+                            profile.save()
+                        except Exception as e:
+                            broadcast_info_message(f'Ошибка при обновлении даты - {e}')
                 except:
                     continue
 
