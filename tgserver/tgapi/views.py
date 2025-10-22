@@ -151,11 +151,14 @@ class ProfilesAPIView(APIView):
                         profiles[i] = second
                         profiles[x] = first
                         continue
-                    if first is not None and second is not None:
-                        if second.last_message_date > first.last_message_date:
-                            profiles[i] = second
-                            profiles[x] = first
-                            continue
+                    try:
+                        if first is not None and second is not None:
+                            if second.last_message_date > first.last_message_date:
+                                profiles[i] = second
+                                profiles[x] = first
+                                continue
+                    except:
+                        pass
             return Response(ProfileSelizalier(profiles,many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
