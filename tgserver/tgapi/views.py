@@ -244,8 +244,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
             messages = messages.filter(telegram_id=telegram_id)
         if dialog_id is not None and telegram_id is None and from_gui is not None:
             msgs = Message.objects.filter(dialog=Dialog.objects.get(id=dialog_id), is_read=False)
-            profile = Profile.objects.get(phone_number=Dialog.objects.get(id=dialog_id).account_phone)
-            profile.unread_count -= len(msgs)
+
             msgs.update(is_read=True)
         serializer = MessageSerializer(messages,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -307,8 +306,7 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         try:
             profile = Profile.objects.get(phone_number=message.dialog.account_phone)
             profile.last_message_date = message.date
-            if message.sender_name not in str(profile):
-                profile.unread_count += 1
+
             profile.save()
         except:
             pass
