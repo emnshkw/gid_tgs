@@ -220,7 +220,14 @@ class MessageMediaListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         message = serializer.save()
-
+        try:
+            dialog = Dialog.objects.get(id=int(message.dialog))
+            profile = Profile.objects.get(phone_number=dialog.account_phone)
+            if message.date > profile.last_message_date:
+                profile.last_message_date = message.date
+                profile.save()
+        except:
+            pass
         # прикрепляем файлы, если есть
         files = request.FILES.getlist("files")
         print(len(files))
