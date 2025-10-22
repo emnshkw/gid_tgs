@@ -157,7 +157,7 @@ class ProfilesAPIView(APIView):
                         continue
                     try:
                         if first is not None and second is not None:
-                            if second.last_message_date > first.last_message_date:
+                            if second.last_message_date > first.last_message_date or ProfileSelizalier(first).data['unread_count'] == 0:
                                 profiles[i] = second
                                 profiles[x] = first
                                 continue
