@@ -73,10 +73,13 @@ class MessagesBatchView(APIView):
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
+                            if sender_name not in profile.username:
+                                profile.unread_count += 1
                             profile.last_message_date = parse_iso_datetime(date_str + "Z")
                             profile.save()
                         except Exception as e:
                             broadcast_info_message(f'Ошибка при обновлении даты - {e}')
+
                 except:
                     continue
 
@@ -159,13 +162,13 @@ class ProfilesAPIView(APIView):
                                 continue
                     except:
                         pass
-            for i in profiles:
-                unread = 0
-                for d in Dialog.objects.filter(account_phone=i.phone_number):
-                    d_data = DialogSerializer(d).data
-                    unread += int(d_data['unread_count'])
-                i.unread_count = unread
-                i.save()
+            # for i in profiles:
+            #     unread = 0
+            #     for d in Dialog.objects.filter(account_phone=i.phone_number):
+            #         d_data = DialogSerializer(d).data
+            #         unread += int(d_data['unread_count'])
+            #     i.unread_count = unread
+            #     i.save()
             return Response(ProfileSelizalier(profiles,many=True).data)
             #         first_dialogs_dates.sort()
             #         second_dialogs_dates.sort()
