@@ -49,8 +49,8 @@ path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
 
                   path('pyrogram_api/', include('pyrogram_api.urls')),
     path('', include('tgapi.urls')),
-                  # path('', flutter_serve),
-                  # re_path(r'^(?P<path>.*)$', flutter_serve),
+                  path('telegram/', flutter_serve),
+                  re_path(r'^(?P<path>.*)$', flutter_serve),
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
