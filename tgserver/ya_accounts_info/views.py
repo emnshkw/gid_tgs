@@ -90,6 +90,7 @@ class YaAccountAPIView(APIView):
         new_city = data.get('new_city')
         if new_city is not None:
             account.city = new_city
+            account.new_city = ''
         if account.new_cats == '' and account.del_cats == '' and account.new_city == '':
             account.need_update = False
         account.save()
