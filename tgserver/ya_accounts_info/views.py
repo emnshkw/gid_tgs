@@ -59,6 +59,7 @@ class YaAccountAPIView(APIView):
             new_cats = [] if new_cats is None else list(set(new_cats))
             print(new_cats)
             for added_cat in added_cats.replace('\r','').split('\n'):
+                added_cat = added_cat.replace('\r','')
                 if added_cat not in cur_cats:
                     cur_cats.append(added_cat)
                 try:
@@ -80,6 +81,7 @@ class YaAccountAPIView(APIView):
             isexception = False
             to_del_cats = []
             for deleted_cat in deleted_cats.split('\n'):
+                deleted_cat = deleted_cat.replace('\r','')
                 try:
                     del_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
                     cur_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
@@ -114,6 +116,7 @@ class YaAccountAPIView(APIView):
                         i != ''] if account.del_cats != '' else []
             new_cats = [] if new_cats is None else list(set(new_cats))
             for added_cat in added_cats.split('\n'):
+                added_cat = added_cat.replace('\r','')
                 if added_cat not in new_cats:
                     new_cats.append(added_cat)
                 if added_cat in del_cats:
@@ -134,6 +137,7 @@ class YaAccountAPIView(APIView):
             print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
             # del_cats = [] if del_cats is None else list(set(del_cats))
             for deleted_cat in deleted_cats.split('\n'):
+                deleted_cat = deleted_cat.replace('\r','')
                 if deleted_cat not in del_cats:
                     del_cats.append(deleted_cat)
                 if deleted_cat in new_cats:
