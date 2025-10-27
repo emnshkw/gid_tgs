@@ -26,7 +26,10 @@ class YaAccountAPIView(APIView):
         data = YaAccountSelizalier(need_update_accounts,many=True).data
         for i in range(len(data)):
             for x in data[i].keys():
-                data[i][x] = data[i][x].replace('\r','')
+                try:
+                    data[i][x] = data[i][x].replace('\r','')
+                except:
+                    pass
         return Response({'status':'success','data':data})
     def post(self,request,*args,**kwargs):
         data = request.data
