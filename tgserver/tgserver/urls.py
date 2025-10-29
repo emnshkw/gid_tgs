@@ -35,7 +35,7 @@ def flutter_serve(request, path=''):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('avito/', include('avito_app.urls')),
+    path('avito/', include('avito.urls')),
                   path('api/dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
                   path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,
                        name='dialog-update-last-message'),
