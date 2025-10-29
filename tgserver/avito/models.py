@@ -10,7 +10,9 @@ class AvitoAccount(models.Model):
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
 
-
+    class Meta:
+        verbose_name = 'Авито аккаунт'
+        verbose_name_plural = 'Авито аккаунты'
 class AvitoAd(models.Model):
     """Модель объявления Авито."""
     ad_id = models.CharField(max_length=50, unique=True)
@@ -22,3 +24,8 @@ class AvitoAd(models.Model):
 
     def __str__(self):
         return f"{self.title} (Аккаунт: {self.account.name})"
+
+
+    class Meta:
+        verbose_name = 'Авито объявление'
+        verbose_name_plural = 'Авито объявления'
