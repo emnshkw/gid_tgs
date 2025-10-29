@@ -35,9 +35,7 @@ def flutter_serve(request, path=''):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-path('avito/account/<str:user_id>/', AccountByUserIDView.as_view(), name='account-by-user-id'),
-    path('avito/ads/<str:user_id>/', AdsByAccountUserIDView.as_view(), name='ads-by-user-id'),
-    path('avito/ads/add/', AvitoAdCreateView.as_view(), name='ad-create'),
+    path('avito/', include('avito_app.urls')),
                   path('api/dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
                   path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,
                        name='dialog-update-last-message'),
