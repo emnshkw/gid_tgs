@@ -68,6 +68,7 @@ class MessagesBatchView(APIView):
                         account_phone=dialog.account_phone,
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
+                        is_read=True
                     )
                     if dialog.last_message_id < int(telegram_id):
                         dialog.last_message_id = int(telegram_id)
