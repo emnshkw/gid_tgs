@@ -126,20 +126,20 @@ class ProfilesAPIView(APIView):
                 for i in list(Profile.objects.all())+list(Media.objects.all())+list(Dialog.objects.all())+list(Message.objects.all()):
                     i.delete()
                 return Response({'status':'krutyak'})
-            # profiles = list(Profile.objects.all())
-            # dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
-            # for profile in profiles:
-            #     for d in dialogs:
-            #         if d['account_phone'] == profile.phone_number and d['last_message']:
-            #             try:
-            #                 if profile.last_message_date < parse_iso_datetime(d['last_message']['date']):
-            #                     profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
-            #                     profile.save()
-            #                     break
-            #             except:
-            #                 profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
-            #                 profile.save()
-            #                 break
+            profiles = list(Profile.objects.all())
+            dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
+            for profile in profiles:
+                for d in dialogs:
+                    if d['account_phone'] == profile.phone_number and d['last_message']:
+                        try:
+                            if profile.last_message_date < parse_iso_datetime(d['last_message']['date']):
+                                profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
+                                profile.save()
+                                break
+                        except:
+                            profile.last_message_date = parse_iso_datetime(d['last_message']['date'])
+                            profile.save()
+                            break
             try:
                 data = ProfileSelizalier(Profile.objects.get(phone_number=int(pk)))
                 return Response(data.data)
