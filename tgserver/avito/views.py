@@ -53,6 +53,27 @@ class AvitoAdCreateView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, ad_id):
+        ad = get_object_or_404(AvitoAd, ad_id=ad_id)
+
+        allowed_fields = ["position", "view_price"]
+        data = {k: v for k, v in request.data.items() if k in allowed_fields}
+
+        if not data:
+            return Response(
+                {"error": "Укажите хотя бы одно поле: position или view_price"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AvitoAdSerializer(ad, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"message": "Объявление обновлено", "data": serializer.data},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class DeleteAdView(APIView):
     """
