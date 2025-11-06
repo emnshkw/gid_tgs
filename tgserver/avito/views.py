@@ -53,6 +53,19 @@ class AvitoAdCreateView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UpdateAdView(APIView):
+    """
+    PATCH /avito/ads/update/<ad_id>/
+
+    Обновляет цену и/или позицию объявления.
+
+    Пример тела запроса:
+    {
+        "position": 2,
+        "view_price": 18.50
+    }
+    """
+
     def patch(self, request, ad_id):
         ad = get_object_or_404(AvitoAd, ad_id=ad_id)
 
