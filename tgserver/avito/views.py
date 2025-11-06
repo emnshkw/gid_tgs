@@ -52,7 +52,7 @@ class AvitoAdCreateView(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-from datetime import datetime
+from datetime import datetime,timedelta
 class UpdateAdView(APIView):
     """
     PATCH /avito/ads/update/<ad_id>/
@@ -71,7 +71,7 @@ class UpdateAdView(APIView):
 
         allowed_fields = ["position", "view_price"]
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
-        data['update_date'] = datetime.now()
+        data['update_date'] = datetime.now()+timedelta(hours=3)
         if not data:
             return Response(
                 {"error": "Укажите хотя бы одно поле: position или view_price"},
