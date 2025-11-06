@@ -23,7 +23,7 @@ class AvitoAd(models.Model):
     account = models.ForeignKey(AvitoAccount, related_name='ads', on_delete=models.CASCADE)
     update_date = models.DateTimeField('Дата обновления позиции',auto_now=False,null=True)
     def __str__(self):
-        return f"{self.title} (Аккаунт: {self.account.name})"
+        return f"{self.title} (Аккаунт: {self.account.name}). Позиция - {self.position}, ставка - {self.view_price}"
 
 
     class Meta:
