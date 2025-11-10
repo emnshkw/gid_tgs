@@ -24,7 +24,8 @@ class AvitoAd(models.Model):
     update_date = models.DateTimeField('Дата обновления позиции',auto_now=False,null=True)
     updated_after_position = models.BooleanField('После обновления позиции обновлена ставка',default=False)
     def __str__(self):
-        return f"{self.title} (Аккаунт: {self.account.name}). Позиция - {self.position}, ставка - {self.view_price}"
+        status = "Ставку не нужно проверить" if self.update_date else 'Нужно проверить ставку'
+        return f"{self.title} (Аккаунт: {self.account.name}). Позиция - {self.position}, ставка - {self.view_price}. {status}"
 
 
     class Meta:
