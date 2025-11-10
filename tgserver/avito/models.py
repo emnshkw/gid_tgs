@@ -22,6 +22,7 @@ class AvitoAd(models.Model):
     link = models.URLField(max_length=500)  # 👈 новое поле — ссылка на объявление
     account = models.ForeignKey(AvitoAccount, related_name='ads', on_delete=models.CASCADE)
     update_date = models.DateTimeField('Дата обновления позиции',auto_now=False,null=True)
+    updated_after_position = models.BooleanField('После обновления позиции обновлена ставка',default=False)
     def __str__(self):
         return f"{self.title} (Аккаунт: {self.account.name}). Позиция - {self.position}, ставка - {self.view_price}"
 
