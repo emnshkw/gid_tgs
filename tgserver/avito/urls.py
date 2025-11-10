@@ -5,7 +5,7 @@ urlpatterns = [
     path('account/<str:user_id>/', AccountByUserIDView.as_view(), name='account-by-user-id'),
     path('ads/add/', AvitoAdCreateView.as_view(), name='ad-create'),
     path('ads/update/<str:ad_id>/', UpdateAdView.as_view(), name='ad-update'),
-    path('ads/update_view_price/<str:ad_id>/', UpdateAdView.as_view(), name='ad-update'),
+    path('ads/update_view_price/<str:ad_id>/', UpdateAdViewPriceView.as_view(), name='ad-update'),
     path('ads/get/<str:user_id>/', AdsByAccountUserIDView.as_view(), name='ads-by-user-id'),
 
 ]
