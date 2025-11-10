@@ -106,7 +106,7 @@ class UpdateAdViewPriceView(APIView):
     def patch(self, request, ad_id):
         ad = get_object_or_404(AvitoAd, ad_id=ad_id)
 
-        allowed_fields = ["view_price"]
+        allowed_fields = ["view_price",'updated_after_position']
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
         # data['update_date'] = datetime.now() + timedelta(hours=3)
         data['updated_after_position'] = True
