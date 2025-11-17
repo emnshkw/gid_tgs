@@ -117,9 +117,12 @@ class YaAccountAPIView(APIView):
             new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
             del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if
                         i != ''] if account.del_cats != '' else []
+            cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
             new_cats = [] if new_cats is None else list(set(new_cats))
             for added_cat in added_cats.split('\n'):
                 added_cat = added_cat.replace('\r','')
+                if added_cat in cur_cats:
+                    cur_cats.remove(added_cat)
                 if added_cat not in new_cats:
                     new_cats.append(added_cat)
                 if added_cat in del_cats:
@@ -132,6 +135,10 @@ class YaAccountAPIView(APIView):
                 account.new_cats = '\n'.join(list(set(new_cats)))
             else:
                 account.new_cats = ''
+            if cur_cats is not None and len(cur_cats) != 0:
+                account.categories = '\n'.join(list(set(cur_cats)))
+            else:
+                account.categories = ''
             account.need_update = True
         deleted_cats = data.get('deleted_cats')
         if deleted_cats is not None and deleted_cats != '':

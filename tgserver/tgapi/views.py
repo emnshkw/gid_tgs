@@ -74,6 +74,8 @@ class MessagesBatchView(APIView):
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
+                            msg.is_read=sender_name not in profile.username
+                            msg.save()
                             # if sender_name not in profile.username:
                             #     profile.unread_count += 1
                             profile.last_message_date = parse_iso_datetime(date_str + "Z")
