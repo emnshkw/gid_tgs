@@ -74,7 +74,7 @@ class MessagesBatchView(APIView):
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
-                            msg.is_read=sender_name not in profile.username
+                            msg.is_read='Я' == sender_name
                             msg.save()
                             # if sender_name not in profile.username:
                             #     profile.unread_count += 1
