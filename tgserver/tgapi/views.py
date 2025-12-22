@@ -44,7 +44,11 @@ class MessagesBatchView(APIView):
 
             for msg_data in messages:
                 dialog_id = msg_data.get("dialog")
-                if not Dialog.objects.filter(id=dialog_id).exists():
+                dialog = Dialog.objects.filter(id=dialog_id)
+                if not dialog(id=dialog_id).exists():
+                    if dialog.last_message_id < int(msg_data['id']):
+                        dialog.last_message_id = int(msg_data['id'])
+                        dialog.save()
                     print(f"❌ Нет диалога {dialog_id}, пропускаем сообщение")
                     continue
                 dialog = Dialog.objects.get(id=dialog_id)
