@@ -44,11 +44,7 @@ class MessagesBatchView(APIView):
 
             for msg_data in messages:
                 dialog_id = msg_data.get("dialog")
-                dialog = Dialog.objects.filter(id=dialog_id)
-                if not dialog.exists():
-                    if dialog.last_message_id < int(msg_data['id']):
-                        dialog.last_message_id = int(msg_data['id'])
-                        dialog.save()
+                if not Dialog.objects.filter(id=dialog_id).exists():
                     print(f"❌ Нет диалога {dialog_id}, пропускаем сообщение")
                     continue
                 dialog = Dialog.objects.get(id=dialog_id)
@@ -57,6 +53,10 @@ class MessagesBatchView(APIView):
                 date_str = msg_data.get("date")
 
                 if telegram_id and Message.objects.filter(telegram_id=telegram_id, dialog_id=dialog_id).exists():
+                    print(dialog.last_message_id, int(msg_data['telegram_id']))
+                    if dialog.last_message_id < int(msg_data['telegram_id']):
+                        dialog.last_message_id = int(msg_data['telegram_id'])
+                        dialog.save()
                     continue  # уже есть
 
                 text = msg_data.get("text", "")
@@ -73,9 +73,9 @@ class MessagesBatchView(APIView):
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
                     )
-                    print(dialog.last_message_id, int(msg_data['id']))
-                    if dialog.last_message_id < int(msg_data['id']):
-                        dialog.last_message_id = int(msg_data['id'])
+                    print(dialog.last_message_id, int(msg_data['telegram_id']))
+                    if dialog.last_message_id < int(msg_data['telegram_id']):
+                        dialog.last_message_id = int(msg_data['telegram_id'])
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
