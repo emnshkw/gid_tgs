@@ -69,7 +69,7 @@ class MessagesBatchView(APIView):
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
                     )
-                    print(dialog.last_message_id < int(msg_data['id']))
+                    print(dialog.last_message_id, int(msg_data['id']))
                     if dialog.last_message_id < int(msg_data['id']):
                         dialog.last_message_id = int(msg_data['id'])
                         dialog.save()
