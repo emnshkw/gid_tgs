@@ -84,7 +84,8 @@ class MessagesBatchView(APIView):
                         except Exception as e:
                             broadcast_info_message(f'Ошибка при обновлении даты - {e}')
 
-                except:
+                except Exception as e:
+                    print(f"Ошибка при добавлении - {e}")
                     continue
 
                 media_instances = []
