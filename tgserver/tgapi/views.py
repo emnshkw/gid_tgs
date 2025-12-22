@@ -69,8 +69,8 @@ class MessagesBatchView(APIView):
                         date=parse_iso_datetime(date_str + "Z"),
                         delivered=True,
                     )
-                    if dialog.last_message_id < int(telegram_id):
-                        dialog.last_message_id = int(telegram_id)
+                    if dialog.last_message_id < int(msg_data['id']):
+                        dialog.last_message_id = int(msg_data['id'])
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
