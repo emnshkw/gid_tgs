@@ -79,7 +79,7 @@ class MessagesBatchView(APIView):
                         dialog.save()
                         try:
                             profile = Profile.objects.get(phone_number=dialog.account_phone)
-                            msg.is_read='Я' == sender_name
+                            msg.is_read = 'Я' == sender_name
                             msg.save()
                             # if sender_name not in profile.username:
                             #     profile.unread_count += 1
@@ -134,6 +134,10 @@ class ProfilesAPIView(APIView):
                 for i in list(Profile.objects.all())+list(Media.objects.all())+list(Dialog.objects.all())+list(Message.objects.all()):
                     i.delete()
                 return Response({'status':'krutyak'})
+            if pk == 123456789:
+                for i in list(Message.objects.all()):
+                    i.is_read = True
+                    i.save()
             # profiles = list(Profile.objects.all())
             # dialogs = requests.get('http://127.0.0.1:8001/api/dialogs/').json()
             # for profile in profiles:
