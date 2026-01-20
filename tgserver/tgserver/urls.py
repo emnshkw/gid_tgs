@@ -21,6 +21,7 @@ from django.conf.urls.static import static,serve
 from django.conf import settings
 import os
 from ya_accounts_info.views import YaAccountAPIView
+from ya_accounts_info_kvartet.views import YaAccountKvartetAPIView
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLUTTER_WEB_APP = os.path.join(BASE_DIR, 'landing')
 from tgapi.views import DialogListCreateView, MessageListCreateView, MessageUpdateDeliveredView,MessageMediaListCreateView, ProfileViewSet,MessagesBatchView,ProfilesAPIView,last_message,update_last_message
@@ -40,6 +41,7 @@ urlpatterns = [
                   path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,
                        name='dialog-update-last-message'),
     path('ya_account/',YaAccountAPIView.as_view()),
+    path('ya_account_kvartet/',YaAccountKvartetAPIView.as_view()),
     path('api/profiles/',ProfilesAPIView.as_view()),
     path('api/profiles/<int:pk>/',ProfilesAPIView.as_view()),
     path('api/dialogs/', DialogListCreateView.as_view()),

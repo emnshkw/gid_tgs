@@ -1,0 +1,170 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .serializers import YaAccountKvartetSelizalier
+from datetime import datetime, timedelta
+from .models import YaAccountKvartetModel
+class YaAccountKvartetAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        need_update_accounts = list(YaAccountKvartetModel.objects.all())
+        # for account in need_update_accounts:
+        #     name = account.name.split(' ')
+        #     if len(name) == 3:
+        #         account.delete()
+        # for account in need_update_accounts:
+        #     account.categories = account.categories.replace('Электромонтажные работы - срочный выезд','Электромонтажные работы — срочный выезд').replace('Сантехнические работы и отопление - аварийный выезд','Сантехнические работы и отопление — аварийный выезд')
+        #     account.new_cats = account.new_cats.replace('Электромонтажные работы - срочный выезд','').replace('Электромонтажные работы — срочный выезд','').replace('Сантехнические работы и отопление - аварийный выезд','').replace('Сантехнические работы и отопление — аварийный выезд','')
+        #     if 'Стиральные' in account.categories:
+        #         account.categories = account.categories+'\nСушильные машины'
+        #         account.new_cats = account.new_cats.replace('Сушильные машины',"")
+        #     cats = [i.replace("\n","") for i in account.categories.replace('\r','').split('\n') if i != '']
+        #     cats = list(set(cats))
+        #     account.categories = '\n'.join(cats)
+        #     new_cats = [i.replace("\n", "") for i in account.new_cats.replace('\r', '').split('\n') if i != '']
+        #     new_cats = list(set(new_cats))
+        #     account.new_cats = '\n'.join(new_cats)
+        #     account.save()
+        data = YaAccountKvartetSelizalier(need_update_accounts,many=True).data
+        for i in range(len(data)):
+            for x in data[i].keys():
+                try:
+                    data[i][x] = data[i][x].replace('\r','')
+                except:
+                    pass
+        return Response({'status':'success','data':data})
+    def post(self,request,*args,**kwargs):
+        data = request.data
+        name = data.get('name')
+        try:
+            account = YaAccountKvartetModel.objects.get(name=name)
+            return Response({'status':'success','data':YaAccountKvartetSelizalier(account).data})
+        except:
+            pass
+        city = data.get('city')
+        categories = data.get('categories')
+        new_cats = data.get('new_cats')
+        del_cats = data.get('del_cats')
+        new_city = data.get('new_city')
+        need_update = data.get('need_update')
+        new = YaAccountKvartetModel.objects.create(name=name,city=city,categories='\n'.join(categories),new_cats=new_cats,new_city=new_city,del_cats=del_cats,need_update=need_update)
+        return Response({'status':'success','data':YaAccountKvartetSelizalier(new).data})
+    def patch(self,request,*args,**kwargs):
+        data = request.data
+        account_name = data.get('name')
+        try:
+            account = YaAccountKvartetModel.objects.get(name=account_name)
+        except:
+            return Response({"status":'failed','data':"Account not found"})
+        added_cats = data.get('added_cats')
+        print(added_cats)
+        if added_cats is not None and added_cats != '':
+            cur_cats = [i.replace('\r','').replace('\n','') for i in account.categories.split('\n') if i != '']
+            new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            new_cats = [] if new_cats is None else list(set(new_cats))
+            print(new_cats)
+            for added_cat in added_cats.replace('\r','').split('\n'):
+                added_cat = added_cat.replace('\r','')
+                if added_cat not in cur_cats:
+                    cur_cats.append(added_cat)
+                try:
+                    new_cats.remove(added_cat)
+                except:
+                    pass
+            account.categories = '\n'.join(list(set(cur_cats)))
+            print(new_cats)
+            if new_cats is not None and len(new_cats) != 0:
+                account.new_cats = '\n'.join(list(set(new_cats)))
+            else:
+                account.new_cats = ''
+        deleted_cats = data.get('deleted_cats')
+        if deleted_cats is not None and deleted_cats != '':
+            cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
+            cur_cats = [] if cur_cats is None else list(set(cur_cats))
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != '']
+            del_cats = [] if del_cats is None else list(set(del_cats))
+            isexception = False
+            to_del_cats = []
+            for deleted_cat in deleted_cats.split('\n'):
+                deleted_cat = deleted_cat.replace('\r','')
+                try:
+                    del_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
+                    cur_cats.remove(deleted_cat.replace('\r','').replace('\n',''))
+                except Exception as e:
+                    pass
+            account.categories = '\n'.join(list(set(cur_cats)))
+            if del_cats is not None and len(del_cats) != 0:
+                account.del_cats = '\n'.join(list(set(del_cats)))
+            else:
+                account.del_cats = ''
+        new_city = data.get('new_city')
+        if new_city is not None:
+            account.city = new_city
+            account.new_city = ''
+        if account.new_cats == '' and account.del_cats == '' and account.new_city == '':
+            account.need_update = False
+        account.save()
+        return Response({"status":'success','message':"Изменения внесены!"})
+
+
+    def put(self,request,*args,**kwargs):
+        data = request.data
+        account_name = data.get('name')
+        try:
+            account = YaAccountKvartetModel.objects.get(name=account_name)
+        except:
+            return Response({"status":'failed','data':"Account not found"})
+        added_cats = data.get('added_cats')
+        if added_cats is not None and added_cats != '':
+            new_cats = [i.replace('\r','').replace('\n','') for i in account.new_cats.split('\n') if i != '']
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if
+                        i != ''] if account.del_cats != '' else []
+            cur_cats = [i.replace('\r', '').replace('\n', '') for i in account.categories.split('\n') if i != '']
+            new_cats = [] if new_cats is None else list(set(new_cats))
+            for added_cat in added_cats.split('\n'):
+                added_cat = added_cat.replace('\r','')
+                if added_cat in cur_cats:
+                    cur_cats.remove(added_cat)
+                if added_cat not in new_cats:
+                    new_cats.append(added_cat)
+                if added_cat in del_cats:
+                    del_cats.remove(added_cat)
+            if del_cats is not None and len(del_cats) != 0:
+                account.del_cats = '\n'.join(list(set(del_cats)))
+            else:
+                account.del_cats = ''
+            if new_cats is not None and len(new_cats) != 0:
+                account.new_cats = '\n'.join(list(set(new_cats)))
+            else:
+                account.new_cats = ''
+            if cur_cats is not None and len(cur_cats) != 0:
+                account.categories = '\n'.join(list(set(cur_cats)))
+            else:
+                account.categories = ''
+            account.need_update = True
+        deleted_cats = data.get('deleted_cats')
+        if deleted_cats is not None and deleted_cats != '':
+            new_cats = [i.replace('\r', '').replace('\n', '') for i in account.new_cats.split('\n') if i != '']
+            del_cats = [i.replace('\r', '').replace('\n', '') for i in account.del_cats.split('\n') if i != ''] if account.del_cats != '' else []
+            print(f'del_cats - ({del_cats}). account.del_cats - ({account.del_cats}), {account.del_cats != ""}')
+            # del_cats = [] if del_cats is None else list(set(del_cats))
+            for deleted_cat in deleted_cats.split('\n'):
+                deleted_cat = deleted_cat.replace('\r','')
+                if deleted_cat not in del_cats:
+                    del_cats.append(deleted_cat)
+                if deleted_cat in new_cats:
+                    new_cats.remove(deleted_cat)
+            if del_cats is not None and len(del_cats) != 0:
+                account.del_cats = '\n'.join(list(set(del_cats)))
+            else:
+                account.del_cats = ''
+
+            if new_cats is not None and len(new_cats) != 0:
+                account.new_cats = '\n'.join(list(set(new_cats)))
+            else:
+                account.new_cats = ''
+            account.need_update = True
+        new_city = data.get('new_city')
+        if new_city is not None:
+            account.new_city = new_city
+            account.need_update = True
+        account.save()
+        return Response({"status":'success','message':"Изменения внесены!"})
