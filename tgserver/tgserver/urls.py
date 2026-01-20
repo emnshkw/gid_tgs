@@ -37,9 +37,8 @@ def flutter_serve(request, path=''):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('avito/', include('avito.urls')),
-                  path('api/dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
-                  path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,
-                       name='dialog-update-last-message'),
+    path('api/dialogs/<int:dialog_id>/last_message/', last_message, name='dialog-last-message'),
+    path('api/dialogs/<int:dialog_id>/last_message/update/', update_last_message,name='dialog-update-last-message'),
     path('ya_account/',YaAccountAPIView.as_view()),
     path('ya_account_kvartet/',YaAccountKvartetAPIView.as_view()),
     path('api/profiles/',ProfilesAPIView.as_view()),
@@ -49,13 +48,11 @@ urlpatterns = [
     path('api/messages/', MessageListCreateView.as_view()),
     path('api/messages_media/', MessageMediaListCreateView.as_view()),
     path('api/messages/<int:pk>/', MessageUpdateDeliveredView.as_view()),
-path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
-
-                  path('pyrogram_api/', include('pyrogram_api.urls')),
+    path("api/messages_batch/", MessagesBatchView.as_view(), name="messages_batch"),
+    path('pyrogram_api/', include('pyrogram_api.urls')),
     path('', include('tgapi.urls')),
-                  path('telegram/', flutter_serve),
-                  re_path(r'^telegram/(?P<path>.*)$', flutter_serve),
-
+    path('telegram/', flutter_serve),
+    re_path(r'^telegram/(?P<path>.*)$', flutter_serve),
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = 'Панель администрирования GID'
