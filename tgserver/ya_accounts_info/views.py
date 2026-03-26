@@ -169,7 +169,7 @@ class YaAccountAPIView(APIView):
         account.save()
         return Response({"status":'success','message':"Изменения внесены!"})
     def delete(self,request,*args,**kwargs):
-        acc_name = request.get('name')
+        acc_name = request.data.get('name')
         try:
             model = YaAccountModel.objects.get(name=acc_name)
         except:
