@@ -168,3 +168,11 @@ class YaAccountAPIView(APIView):
             account.need_update = True
         account.save()
         return Response({"status":'success','message':"Изменения внесены!"})
+    def delete(self,request,*args,**kwargs):
+        acc_name = request.get('name')
+        try:
+            model = YaAccountModel.objects.get(name=acc_name)
+        except:
+            return Response({"status":"failed",'message':"Аккаунт не найден"})
+        model.delete()
+        return Response({"status": "success", 'message': "Аккаунт удалён"})
